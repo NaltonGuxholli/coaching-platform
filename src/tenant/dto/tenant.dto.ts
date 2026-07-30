@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
@@ -40,6 +41,7 @@ export class UpdateTenantSettingsDto {
 export class CreateDomainDto {
   @ApiPropertyOptional({ example: 'coach.example.com' })
   @IsString()
+  @IsNotEmpty()
   domain!: string;
 }
 

@@ -5,7 +5,9 @@ import { RoleName } from '../role.enum';
 
 describe('RolesGuard', () => {
   it('allows requests when no role metadata is configured', () => {
-    const reflector = { getAllAndOverride: jest.fn().mockReturnValue(undefined) };
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue(undefined),
+    };
     const guard = new RolesGuard(reflector as unknown as Reflector);
     const context = {
       getHandler: jest.fn(),

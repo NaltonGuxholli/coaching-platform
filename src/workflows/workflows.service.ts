@@ -30,6 +30,7 @@ export class WorkflowsService {
   constructor(@Inject(PRISMA_SERVICE) private readonly prisma: PrismaService) {}
 
   async createCourse(user: AuthenticatedUser, dto: CreateCourseDto) {
+    const slug = dto.slug.trim().toLowerCase();
     if (dto.categoryId) {
       const category = await this.prisma.category.findFirst({
         where: { id: dto.categoryId, tenantId: user.tenantId },
@@ -37,7 +38,7 @@ export class WorkflowsService {
       if (!category) throw new NotFoundException('Category was not found');
     }
     const existing = await this.prisma.course.findUnique({
-      where: { tenantId_slug: { tenantId: user.tenantId, slug: dto.slug } },
+      where: { tenantId_slug: { tenantId: user.tenantId, slug } },
     });
     if (existing)
       throw new ConflictException('A course with this slug already exists');
@@ -45,7 +46,7 @@ export class WorkflowsService {
       data: {
         tenantId: user.tenantId,
         title: dto.title,
-        slug: dto.slug.trim().toLowerCase(),
+        slug,
         description: dto.description,
         categoryId: dto.categoryId,
         level: dto.level,

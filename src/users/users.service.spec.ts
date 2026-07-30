@@ -46,6 +46,69 @@ describe('UsersService', () => {
     );
   });
 
+  it('returns one tenant-scoped user and deactivates that user', async () => {
+    const { prisma, service } = makeService();
+    prisma.user.findFirst.mockResolvedValue(account);
+    prisma.user.update.mockResolvedValue({ id: 'user-1', status: 'SUSPENDED' });
+
+    await expect(
+      service.findOneForTenant('tenant-1', 'user-1'),
+    ).resolves.toEqual(account);
+    await expect(
+      service.deactivateForTenant('tenant-1', 'user-1'),
+    ).resolves.toEqual({ id: 'user-1', status: 'SUSPENDED' });
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'user-1' },
+        data: { status: 'SUSPENDED' },
+      }),
+    );
+  });
+
+  it('exports an account and rejects missing accounts', async () => {
+    const { prisma, service } = makeService();
+    prisma.user.findUnique.mockResolvedValue({ id: 'user-1', enrollments: [] });
+    await expect(service.exportAccount('user-1')).resolves.toEqual({
+      id: 'user-1',
+      enrollments: [],
+    });
+
+    prisma.user.findUnique.mockResolvedValue(null);
+    await expect(service.exportAccount('missing')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('updates the authenticated account and notification preferences', async () => {
+    const { prisma, service } = makeService();
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.update.mockResolvedValue({
+      id: 'user-1',
+      email: 'new@example.com',
+    });
+    await service.updateAccount(
+      { ...account, roles: [RoleName.STUDENT] },
+      { firstName: ' Ada ', email: 'NEW@example.com' },
+    );
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'user-1' },
+        data: expect.objectContaining({
+          firstName: 'Ada',
+          email: 'new@example.com',
+        }),
+      }),
+    );
+    prisma.notificationPreference.upsert.mockResolvedValue({
+      userId: 'user-1',
+    });
+    await expect(service.getNotificationPreferences('user-1')).resolves.toEqual(
+      {
+        userId: 'user-1',
+      },
+    );
+  });
+
   it('rejects updates for users outside the tenant', async () => {
     const { prisma, service } = makeService();
     prisma.user.findFirst.mockResolvedValue(null);
@@ -107,16 +170,20 @@ describe('UsersService', () => {
     ).resolves.toEqual({ userId: 'user-1', remindersEnabled: false });
     await service.sessions('user-1');
     expect(prisma.deviceSession.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ userId: 'user-1' }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: 'user-1' }),
+      }),
     );
   });
 
   it('revokes an owned session and rejects a missing session', async () => {
     const { prisma, service } = makeService();
     prisma.deviceSession.updateMany.mockResolvedValue({ count: 1 });
-    await expect(service.revokeSession('user-1', 'session-1')).resolves.toEqual({
-      success: true,
-    });
+    await expect(service.revokeSession('user-1', 'session-1')).resolves.toEqual(
+      {
+        success: true,
+      },
+    );
 
     prisma.deviceSession.updateMany.mockResolvedValue({ count: 0 });
     await expect(
@@ -133,7 +200,10 @@ describe('UsersService', () => {
     expect(prisma.user.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'user-1' },
-        data: expect.objectContaining({ status: 'DELETED', email: expect.stringContaining('deleted-user-1') }),
+        data: expect.objectContaining({
+          status: 'DELETED',
+          email: expect.stringContaining('deleted-user-1'),
+        }),
       }),
     );
   });

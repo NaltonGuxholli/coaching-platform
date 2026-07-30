@@ -2,7 +2,6 @@ import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
-import { PRISMA_SERVICE } from '../prisma/prisma.constants';
 import type { PrismaService } from '../prisma/prisma.service';
 import { RoleName } from './role.enum';
 
@@ -108,7 +107,10 @@ describe('AuthService', () => {
 
   it('rejects duplicate learner accounts within one tenant', async () => {
     const { prisma, service } = makeService();
-    prisma.tenant.findFirst.mockResolvedValue({ id: 'tenant-1', status: 'ACTIVE' });
+    prisma.tenant.findFirst.mockResolvedValue({
+      id: 'tenant-1',
+      status: 'ACTIVE',
+    });
     prisma.user.findUnique.mockResolvedValue({ id: 'existing-user' });
 
     await expect(
@@ -125,7 +127,10 @@ describe('AuthService', () => {
   it('logs in with a tenant slug and rejects invalid passwords', async () => {
     const { prisma, service } = makeService();
     const passwordHash = await bcrypt.hash('password-123', 4);
-    prisma.tenant.findFirst.mockResolvedValue({ id: 'tenant-1', status: 'ACTIVE' });
+    prisma.tenant.findFirst.mockResolvedValue({
+      id: 'tenant-1',
+      status: 'ACTIVE',
+    });
     prisma.user.findUnique.mockResolvedValue({ ...user, passwordHash });
 
     const result = await service.login({
@@ -169,13 +174,18 @@ describe('AuthService', () => {
 
     expect(result.user.roles).toEqual([RoleName.INSTRUCTOR]);
     expect(prisma.tenantSettings.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ tenantId: 'tenant-2' }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ tenantId: 'tenant-2' }),
+      }),
     );
   });
 
   it('queues password reset mail without revealing unknown accounts', async () => {
     const { prisma, service } = makeService();
-    prisma.tenant.findFirst.mockResolvedValue({ id: 'tenant-1', status: 'ACTIVE' });
+    prisma.tenant.findFirst.mockResolvedValue({
+      id: 'tenant-1',
+      status: 'ACTIVE',
+    });
     prisma.user.findUnique.mockResolvedValue(null);
 
     await expect(

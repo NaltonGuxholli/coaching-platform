@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { WorkflowsService } from './workflows.service';
 import type { PrismaService } from '../prisma/prisma.service';
@@ -73,7 +70,12 @@ describe('WorkflowsService', () => {
       courseProgress: { upsert: jest.fn() },
       courseAnalytics: { upsert: jest.fn() },
       lessonAnalytics: { upsert: jest.fn() },
-      notification: { findMany: jest.fn(), findFirst: jest.fn(), createMany: jest.fn(), update: jest.fn() },
+      notification: {
+        findMany: jest.fn(),
+        findFirst: jest.fn(),
+        createMany: jest.fn(),
+        update: jest.fn(),
+      },
       report: { create: jest.fn() },
       tenant: { findFirst: jest.fn() },
       customDomain: { findFirst: jest.fn() },
@@ -128,6 +130,24 @@ describe('WorkflowsService', () => {
     expect(call?.data.price).toEqual(new Prisma.Decimal(12.99));
   });
 
+  it('checks duplicate course slugs after normalization', async () => {
+    const { prisma, service } = makeService();
+    prisma.course.findUnique.mockResolvedValue({ id: 'existing-course' });
+
+    await expect(
+      service.createCourse(instructor, {
+        title: 'Course',
+        slug: ' Existing-Course ',
+      }),
+    ).rejects.toThrow('A course with this slug already exists');
+    expect(prisma.course.findUnique).toHaveBeenCalledWith({
+      where: {
+        tenantId_slug: { tenantId: 'tenant-1', slug: 'existing-course' },
+      },
+    });
+    expect(prisma.course.create).not.toHaveBeenCalled();
+  });
+
   it('updates library items without passing the DTO-only tags field to Prisma', async () => {
     const { prisma, service } = makeService();
     prisma.libraryItem.findFirst.mockResolvedValue({ id: 'library-1' });
@@ -148,7 +168,14 @@ describe('WorkflowsService', () => {
   it('filters the reusable library by type, tag, and duration', async () => {
     const { prisma, service } = makeService();
     prisma.libraryItem.findMany.mockResolvedValue([]);
-    await service.library(instructor, 'warmup', 'exercise', 'mobility', '30', '90');
+    await service.library(
+      instructor,
+      'warmup',
+      'exercise',
+      'mobility',
+      '30',
+      '90',
+    );
     expect(prisma.libraryItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -175,12 +202,17 @@ describe('WorkflowsService', () => {
       duration: 60,
     });
     expect(prisma.timerConfiguration.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ tenantId: 'tenant-1' }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ tenantId: 'tenant-1' }),
+      }),
     );
 
     prisma.courseLesson.findFirst.mockResolvedValue({ id: 'lesson-1' });
     prisma.timerConfiguration.findFirst.mockResolvedValue({ id: 'timer-1' });
-    prisma.lessonTimer.create.mockResolvedValue({ lessonId: 'lesson-1', timerId: 'timer-1' });
+    prisma.lessonTimer.create.mockResolvedValue({
+      lessonId: 'lesson-1',
+      timerId: 'timer-1',
+    });
     await service.attachTimer(instructor, 'lesson-1', 'timer-1');
     expect(prisma.lessonTimer.deleteMany).toHaveBeenCalledWith({
       where: { lessonId: 'lesson-1' },
@@ -197,8 +229,13 @@ describe('WorkflowsService', () => {
       processingStatus: 'READY',
     });
     prisma.videoAccessToken.create.mockResolvedValue({});
-    const result = await service.createPublicVideoAccess('ada-maths', 'video-1');
-    expect(result.playbackPath).toContain('/public/ada-maths/videos/video-1/playback');
+    const result = await service.createPublicVideoAccess(
+      'ada-maths',
+      'video-1',
+    );
+    expect(result.playbackPath).toContain(
+      '/public/ada-maths/videos/video-1/playback',
+    );
     expect(prisma.videoAccessToken.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ videoId: 'video-1' }),
@@ -223,7 +260,9 @@ describe('WorkflowsService', () => {
     });
     prisma.courseLesson.count.mockResolvedValue(4);
     prisma.lessonProgress.count.mockResolvedValue(2);
-    prisma.lessonProgress.aggregate.mockResolvedValue({ _avg: { watchedSeconds: 42 } });
+    prisma.lessonProgress.aggregate.mockResolvedValue({
+      _avg: { watchedSeconds: 42 },
+    });
     prisma.enrollment.count.mockResolvedValue(3);
     prisma.courseProgress.upsert.mockResolvedValue({ percentage: 50 });
     prisma.courseAnalytics.upsert.mockResolvedValue({ courseId: 'course-1' });
@@ -250,9 +289,9 @@ describe('WorkflowsService', () => {
       attachments: [],
     });
     prisma.enrollment.findFirst.mockResolvedValue(null);
-    await expect(
-      service.startTimer(learner, 'timer-1'),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.startTimer(learner, 'timer-1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('scopes reports to content owned by the current tenant', async () => {
@@ -271,7 +310,10 @@ describe('WorkflowsService', () => {
     const { prisma, service } = makeService();
     prisma.course.findFirstOrThrow.mockResolvedValue({ id: 'course-1' });
     prisma.course.findFirst.mockResolvedValue(null);
-    prisma.course.update.mockResolvedValue({ id: 'course-1', slug: 'new-slug' });
+    prisma.course.update.mockResolvedValue({
+      id: 'course-1',
+      slug: 'new-slug',
+    });
     await expect(
       service.updateCourse(instructor, 'course-1', {
         slug: ' New-Slug ',
@@ -297,7 +339,10 @@ describe('WorkflowsService', () => {
     prisma.course.update.mockResolvedValue({ ...builder, status: 'PUBLISHED' });
     prisma.enrollment.findMany.mockResolvedValue([
       { studentId: 'learner-1', student: { notificationPreference: null } },
-      { studentId: 'learner-2', student: { notificationPreference: { contentPublished: false } } },
+      {
+        studentId: 'learner-2',
+        student: { notificationPreference: { contentPublished: false } },
+      },
     ]);
     await service.publishCourse(instructor, 'course-1');
     expect(prisma.notification.createMany).toHaveBeenCalledWith({
@@ -328,10 +373,14 @@ describe('WorkflowsService', () => {
           orderIndex: 0,
           scheduleLabel: 'Week 1',
           isRestDay: false,
-          lessons: [{ libraryItemId: 'library-1', orderIndex: 0, isFreePreview: true }],
+          lessons: [
+            { libraryItemId: 'library-1', orderIndex: 0, isFreePreview: true },
+          ],
         },
       ],
-      lessons: [{ libraryItemId: 'library-2', orderIndex: 1, isFreePreview: false }],
+      lessons: [
+        { libraryItemId: 'library-2', orderIndex: 1, isFreePreview: false },
+      ],
     });
     prisma.course.create.mockResolvedValue({ id: 'copy-1' });
     prisma.module.create.mockResolvedValue({ id: 'module-copy-1' });
@@ -342,9 +391,16 @@ describe('WorkflowsService', () => {
 
   it('adds modules and reusable lessons only when their parents belong to the tenant', async () => {
     const { prisma, service } = makeService();
-    prisma.course.findFirstOrThrow.mockResolvedValue({ id: 'course-1', modules: [], lessons: [] });
+    prisma.course.findFirstOrThrow.mockResolvedValue({
+      id: 'course-1',
+      modules: [],
+      lessons: [],
+    });
     prisma.module.create.mockResolvedValue({ id: 'module-1' });
-    await service.addModule(instructor, 'course-1', { title: 'Week 1', orderIndex: 0 });
+    await service.addModule(instructor, 'course-1', {
+      title: 'Week 1',
+      orderIndex: 0,
+    });
     prisma.libraryItem.findFirst.mockResolvedValue({ id: 'library-1' });
     prisma.module.findFirst.mockResolvedValue({ id: 'module-1' });
     prisma.courseLesson.create.mockResolvedValue({ id: 'lesson-1' });
@@ -354,7 +410,9 @@ describe('WorkflowsService', () => {
       orderIndex: 0,
     });
     expect(prisma.courseLesson.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ courseId: 'course-1' }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ courseId: 'course-1' }),
+      }),
     );
   });
 
@@ -420,7 +478,11 @@ describe('WorkflowsService', () => {
     prisma.documentAccessToken.findFirst.mockResolvedValue({
       expiresAt: new Date(Date.now() + 10_000),
       watermarkText: 'learner@example.com',
-      file: { url: 'https://storage.example.com/handout.pdf', name: 'handout.pdf', mimeType: 'application/pdf' },
+      file: {
+        url: 'https://storage.example.com/handout.pdf',
+        name: 'handout.pdf',
+        mimeType: 'application/pdf',
+      },
     });
     await expect(
       service.resolveDocumentAccess(learner, 'file-1', 'token-1'),
@@ -432,10 +494,14 @@ describe('WorkflowsService', () => {
     prisma.enrollment.findMany.mockResolvedValue([]);
     await service.myLearning(learner);
     expect(prisma.enrollment.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { studentId: 'learner-1', status: 'ACTIVE' } }),
+      expect.objectContaining({
+        where: { studentId: 'learner-1', status: 'ACTIVE' },
+      }),
     );
 
-    prisma.enrollment.findFirst.mockResolvedValue({ course: { id: 'course-1' } });
+    prisma.enrollment.findFirst.mockResolvedValue({
+      course: { id: 'course-1' },
+    });
     prisma.enrollment.count.mockResolvedValue(1);
     prisma.courseAnalytics.upsert.mockResolvedValue({});
     await service.learningCourse(learner, 'course-1');
@@ -445,12 +511,18 @@ describe('WorkflowsService', () => {
   it('serves public tenant sites, domains, catalogs, and preview lessons', async () => {
     const { prisma, service } = makeService();
     prisma.tenant.findFirst.mockResolvedValue({ slug: 'ada-maths' });
-    jest.spyOn(service, 'publicSite').mockResolvedValue({ slug: 'ada-maths' } as never);
-    await expect(service.publicSiteByDomain(' Coach.Example.com ')).resolves.toEqual({ slug: 'ada-maths' });
+    jest
+      .spyOn(service, 'publicSite')
+      .mockResolvedValue({ slug: 'ada-maths' } as never);
+    await expect(
+      service.publicSiteByDomain(' Coach.Example.com '),
+    ).resolves.toEqual({ slug: 'ada-maths' });
     prisma.course.findMany.mockResolvedValue([]);
     await service.publicCatalog('ada-maths');
     prisma.course.findFirst.mockResolvedValue({ id: 'course-1' });
-    await expect(service.publicCourse('ada-maths', 'course')).resolves.toEqual({ id: 'course-1' });
+    await expect(service.publicCourse('ada-maths', 'course')).resolves.toEqual({
+      id: 'course-1',
+    });
     expect(prisma.course.findMany).toHaveBeenCalled();
   });
 
@@ -459,8 +531,13 @@ describe('WorkflowsService', () => {
     prisma.notification.findMany.mockResolvedValue([]);
     await service.notifications(learner);
     prisma.notification.findFirst.mockResolvedValue({ id: 'notification-1' });
-    prisma.notification.update.mockResolvedValue({ id: 'notification-1', isRead: true });
-    await expect(service.readNotification(learner, 'notification-1')).resolves.toEqual({
+    prisma.notification.update.mockResolvedValue({
+      id: 'notification-1',
+      isRead: true,
+    });
+    await expect(
+      service.readNotification(learner, 'notification-1'),
+    ).resolves.toEqual({
       id: 'notification-1',
       isRead: true,
     });
@@ -483,12 +560,18 @@ describe('WorkflowsService', () => {
       expiresAt,
       video: { videoUrl: 'https://cdn.example.com/video.m3u8' },
     });
-    await expect(service.resolveVideoAccess('video-1', 'token-1', 'learner-1')).resolves.toEqual({
+    await expect(
+      service.resolveVideoAccess('video-1', 'token-1', 'learner-1'),
+    ).resolves.toEqual({
       streamUrl: 'https://cdn.example.com/video.m3u8',
       expiresAt,
     });
-    await expect(service.resolvePublicVideoAccess('ada-maths', 'video-1', 'token-1')).resolves.toEqual(
-      expect.objectContaining({ streamUrl: 'https://cdn.example.com/video.m3u8' }),
+    await expect(
+      service.resolvePublicVideoAccess('ada-maths', 'video-1', 'token-1'),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        streamUrl: 'https://cdn.example.com/video.m3u8',
+      }),
     );
   });
 
@@ -511,11 +594,23 @@ describe('WorkflowsService', () => {
       elapsedSeconds: 5,
       remainingSeconds: 55,
     });
-    prisma.timerSession.update.mockResolvedValue({ id: 'session-1', completedAt: null });
+    prisma.timerSession.update.mockResolvedValue({
+      id: 'session-1',
+      completedAt: null,
+    });
     await service.getTimerSession(learner, 'session-1');
-    await service.timerAction(learner, 'session-1', 'pause', { elapsedSeconds: 10, remainingSeconds: 50 });
-    prisma.timerRoundLog.upsert.mockResolvedValue({ sessionId: 'session-1', roundNumber: 1 });
-    await service.logRound(learner, 'session-1', { roundNumber: 1, value: '8' });
+    await service.timerAction(learner, 'session-1', 'pause', {
+      elapsedSeconds: 10,
+      remainingSeconds: 50,
+    });
+    prisma.timerRoundLog.upsert.mockResolvedValue({
+      sessionId: 'session-1',
+      roundNumber: 1,
+    });
+    await service.logRound(learner, 'session-1', {
+      roundNumber: 1,
+      value: '8',
+    });
     expect(prisma.timerRoundLog.upsert).toHaveBeenCalled();
   });
 });

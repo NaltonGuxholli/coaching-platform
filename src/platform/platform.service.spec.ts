@@ -43,9 +43,13 @@ describe('PlatformService', () => {
     const prisma = makePrisma();
     const service = new PlatformService(prisma as unknown as PrismaService);
     prisma.tenant.findMany.mockResolvedValue([{ id: 'tenant-1' }]);
-    await expect(service.listTenants(admin)).resolves.toEqual([{ id: 'tenant-1' }]);
+    await expect(service.listTenants(admin)).resolves.toEqual([
+      { id: 'tenant-1' },
+    ]);
     expect(prisma.tenant.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ include: expect.objectContaining({ _count: expect.any(Object) }) }),
+      expect.objectContaining({
+        include: expect.objectContaining({ _count: expect.any(Object) }),
+      }),
     );
   });
 
@@ -58,7 +62,10 @@ describe('PlatformService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
 
     prisma.tenant.findUnique.mockResolvedValue({ id: 'tenant-2' });
-    prisma.tenant.update.mockResolvedValue({ id: 'tenant-2', status: 'ACTIVE' });
+    prisma.tenant.update.mockResolvedValue({
+      id: 'tenant-2',
+      status: 'ACTIVE',
+    });
     await expect(
       service.updateTenantStatus(admin, 'tenant-2', 'ACTIVE'),
     ).resolves.toEqual({ id: 'tenant-2', status: 'ACTIVE' });
@@ -72,7 +79,10 @@ describe('PlatformService', () => {
       entityType: 'COURSE',
       entityId: 'course-1',
     });
-    prisma.report.update.mockResolvedValue({ id: 'report-1', status: 'RESOLVED' });
+    prisma.report.update.mockResolvedValue({
+      id: 'report-1',
+      status: 'RESOLVED',
+    });
 
     await service.reviewReport(admin, 'report-1', {
       status: 'RESOLVED',

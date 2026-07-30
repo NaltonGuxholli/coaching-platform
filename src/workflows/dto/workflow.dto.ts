@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsArray,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -74,7 +75,11 @@ export class CreateLibraryItemDto {
   @IsOptional()
   @IsObject()
   metadataJson?: Record<string, unknown>;
-  @ApiPropertyOptional({ type: [String] }) @IsOptional() tags?: string[];
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 }
 
 export class ProgressDto {

@@ -64,7 +64,9 @@ describe('TenantService', () => {
   it('creates the default theme library when none exists', async () => {
     const { prisma, service } = makeService();
     prisma.theme.count.mockResolvedValue(0);
-    prisma.theme.findMany.mockResolvedValue([{ id: 'theme-1', name: 'Dark Premium' }]);
+    prisma.theme.findMany.mockResolvedValue([
+      { id: 'theme-1', name: 'Dark Premium' },
+    ]);
     await expect(service.listThemes()).resolves.toEqual([
       { id: 'theme-1', name: 'Dark Premium' },
     ]);
@@ -91,19 +93,27 @@ describe('TenantService', () => {
       .mockResolvedValueOnce({ id: 'settings-1', tenantId: 'tenant-1' });
     prisma.tenantSettings.upsert.mockResolvedValue({ id: 'settings-1' });
     prisma.tenantThemeRevision.findFirst.mockResolvedValue({ version: 2 });
-    prisma.tenantThemeRevision.create.mockResolvedValue({ id: 'revision-3', version: 3 });
+    prisma.tenantThemeRevision.create.mockResolvedValue({
+      id: 'revision-3',
+      version: 3,
+    });
     prisma.tenantSettings.update.mockResolvedValue({ id: 'settings-1' });
 
     const draft = await service.updateSettings(instructor, {
       brandName: 'Ada Maths',
       primaryColor: '#111111',
     });
-    expect(draft.preview).toEqual({ brandName: 'Ada Maths', primaryColor: '#111111' });
+    expect(draft.preview).toEqual({
+      brandName: 'Ada Maths',
+      primaryColor: '#111111',
+    });
 
     const published = await service.publishSettings(instructor);
     expect(published.revision).toEqual({ id: 'revision-3', version: 3 });
     expect(prisma.tenantThemeRevision.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ version: 3 }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ version: 3 }),
+      }),
     );
   });
 
