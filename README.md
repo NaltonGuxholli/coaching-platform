@@ -36,6 +36,29 @@ npm run start:dev
 
 Open Swagger at [http://localhost:3000/docs](http://localhost:3000/docs).
 
+### React frontend
+
+The public React landing page lives in `frontend/` and consumes the backend's
+tenant-aware public routes. Start the API first, then run:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+The development server proxies `/public/*` to `http://localhost:3000`. Set
+`VITE_TENANT_SLUG` to choose the tenant shown on the home page, or use a
+tenant subdomain. For a separately hosted API, set `VITE_API_URL` before
+building the frontend.
+
+The frontend routes cover public tenant sites and course previews, login and
+registration/bootstrap, learner courses/progress/playback/timers/notifications,
+account export/security/preferences, instructor courses/library/assets/timers,
+analytics/reports/branding/domains/revisions/users, and platform tenants,
+reports, and theme administration. POK checkout is intentionally shown as a
+deferred integration until its merchant API contract is available.
+
 ## Authentication
 
 For a new empty database, call `POST /auth/bootstrap` once in Swagger. It creates the first active tenant and platform-admin account, then returns an access token. The endpoint is permanently unavailable after the first tenant is created.
