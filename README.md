@@ -1,98 +1,71 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Coaching Platform API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Multi-tenant backend for instructors, courses, reusable lessons, learner progress, timers, theming, notifications, reports, analytics, and tenant administration. It is built with NestJS, Prisma, MySQL, and JWT authentication.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Payment processing is intentionally not implemented in this version because the POK merchant/API contract is still required. Course pricing, currency, billing type, and enrollment tables are ready for that integration. Video playback access uses short-lived, learner-specific tokens and records a dynamic watermark value; the video hosting provider remains responsible for encrypted HLS/DASH streams when DRM is required.
 
-## Description
+## Run locally
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+1. Install dependencies:
 
-## Project setup
-
-```bash
-$ npm install
+```powershell
+npm install
 ```
 
-## Compile and run the project
+2. Copy `.env.example` to `.env`, then set a MariaDB/MySQL connection string and a long random JWT secret:
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```env
+DATABASE_URL="mysql://USER:PASSWORD@127.0.0.1:3306/coaching_platform"
+JWT_SECRET="use-a-long-random-secret"
+JWT_EXPIRES_IN="15m"
+PORT=3000
 ```
 
-## Run tests
+3. Apply the database schema and generate the client:
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```powershell
+npx prisma migrate dev
+npx prisma generate
 ```
 
-## Deployment
+4. Start the server:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+```powershell
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Open Swagger at [http://localhost:3000/docs](http://localhost:3000/docs).
 
-## Resources
+## Authentication
 
-Check out a few resources that may come in handy when working with NestJS:
+For a new empty database, call `POST /auth/bootstrap` once in Swagger. It creates the first active tenant and platform-admin account, then returns an access token. The endpoint is permanently unavailable after the first tenant is created.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Learners self-register with `POST /auth/register` using the branded `tenantSlug` (the legacy `tenantId` is still accepted). Instructors self-register and create their own branded tenant with `POST /auth/register/instructor`. `POST /auth/login` accepts either tenant slug or tenant ID and returns an access token. In Swagger, click **Authorize** and paste the `accessToken` value only; Swagger adds the `Bearer ` prefix automatically.
 
-## Support
+Instructor and administrator operations require an `ADMIN` or `INSTRUCTOR` role. Tenant IDs and creator/upload fields are taken from the authenticated token for tenant-owned records.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Frontend workflow API
 
-## Stay in touch
+The frontend should use the named workflow endpoints in Swagger, not database-table CRUD routes:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- `/instructor/courses` creates and lists courses; a course has dedicated builder, publish, archive, duplicate, module, and lesson routes.
+- `/instructor/library` is the searchable reusable lesson library; `/instructor/timers` creates timer configurations and lesson timer routes attach them.
+- `/learning/my-courses` and `/learning/lessons/{lessonId}/progress` provide learner dashboard and progress persistence.
+- `/public/{tenantSlug}/courses` exposes the public instructor catalog and free previews; `/learning/courses/{courseId}` returns the full purchased course tree.
+- `/public/{tenantSlug}/videos/{videoId}/access` and `/playback` serve only explicitly marked free-preview video sessions to guests. Paid playback requires the authenticated learner who created the short-lived token.
+- `/learning/videos/{videoId}/access` creates a five-minute playback token and an associated watermark session. The configured video URL must be a streaming-provider URL, never a downloadable object URL.
+- `/learning/notifications`, `/learning/reports`, `/account`, and `/admin` provide notification, moderation-reporting, account-management, data-export, tenant lifecycle, and report review workflows.
+- `/timers/{timerId}/sessions` starts a timer; the session pause, resume, finish, and round-log routes persist timer state.
 
-## License
+`POST /auth/password-reset/request` queues a reset email in `EmailLog`; an email provider can consume that queue later. In non-production it returns a development token to make the flow testable.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Course publishing, archival, pricing, free previews, lesson instructions/metadata, module schedule labels/rest days, configurable timer alerts, tenant branding revisions, protected document sessions, device sessions, password resets, and lesson analytics are stored in the database through migrations `20260729133206_add_course_workflows` and `20260730090611_add_frontend_workflows`.
+
+## Verification
+
+```powershell
+npm run test:e2e
+npm test -- --runInBand
+npm run build
+npx eslint "{src,apps,libs,test}/**/*.ts"
+```

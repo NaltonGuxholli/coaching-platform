@@ -1,13 +1,670 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
+}
+
+enum TimerType {
+  COUNTDOWN
+  STOPWATCH
+  INTERVAL
+  AMRAP
+  CIRCUIT
+}
+
+model Tenant {
+  id             String                @id @default(cuid())
+  name           String
+  slug           String                @unique
+  subdomain      String                @unique
+  customDomain   String?               @unique
+  status         String
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  settings       TenantSettings?
+  domains        CustomDomain[]
+  users          User[]
+  roles          Role[]
+  categories     Category[]
+  courses        Course[]
+  libraryItems   LibraryItem[]
+  lessonTags     LessonTag[]
+  fileAssets     FileAsset[]
+  timers         TimerConfiguration[]
+  themeRevisions TenantThemeRevision[]
+
+  @@index([status])
+}
+
+model TenantSettings {
+  id                       String    @id @default(cuid())
+  tenantId                 String    @unique
+  brandName                String?
+  browserTitle             String?
+  logoUrl                  String?   @db.Text
+  faviconUrl               String?   @db.Text
+  primaryColor             String?
+  secondaryColor           String?
+  tertiaryColor            String?
+  backgroundColor          String?
+  fontHeading              String?
+  fontBody                 String?
+  baseThemeId              String?
+  logoLightUrl             String?   @db.Text
+  logoDarkUrl              String?   @db.Text
+  heroImageUrl             String?   @db.Text
+  locale                   String    @default("en")
+  customCss                String?   @db.LongText
+  terminologyJson          Json?
+  pageSectionsJson         Json?
+  draftJson                Json?
+  publishedThemeRevisionId String?
+  publishedAt              DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  tenant                   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  baseTheme                 Theme?    @relation(fields: [baseThemeId], references: [id], onDelete: SetNull)
+}
+
+model TenantThemeRevision {
+  id         String   @id @default(cuid())
+  tenantId   String
+  createdBy  String
+  version    Int
+  configJson Json
+  createdAt  DateTime @default(now())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creator    User     @relation("TenantThemeRevisionCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, version])
+  @@index([tenantId, createdAt])
+}
+
+model CustomDomain {
+  id        String   @id @default(cuid())
+  tenantId  String
+  domain    String   @unique
+  verified  Boolean  @default(false)
+  sslStatus String
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Theme {
+  id           String         @id @default(cuid())
+  name         String
+  description  String?        @db.Text
+  previewImage String?        @db.Text
+  tokenJson    Json
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  versions     ThemeVersion[]
+  tenantSettings TenantSettings[]
+}
+
+model ThemeVersion {
+  id        String   @id @default(cuid())
+  themeId   String
+  version   String
+  tokenJson Json
+  createdAt DateTime @default(now())
+  theme     Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@unique([themeId, version])
+}
+
+model User {
+  id                     String                  @id @default(cuid())
+  tenantId               String
+  firstName              String
+  lastName               String
+  email                  String
+  passwordHash           String
+  isPlatformAdmin        Boolean               @default(false)
+  mfaEnabled             Boolean               @default(false)
+  mfaSecret              String?
+  avatarUrl              String?                 @db.Text
+  status                 String
+  lastLogin              DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  tenant                 Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userRoles              UserRole[]
+  createdLibraryItems    LibraryItem[]           @relation("LibraryItemCreator")
+  courseInstructors      CourseInstructor[]
+  auditLogs              AuditLog[]
+  videoAccessTokens      VideoAccessToken[]
+  watermarkSessions      WatermarkSession[]
+  uploadedFiles          FileAsset[]             @relation("FileUploader")
+  enrollments            Enrollment[]
+  lessonProgress         LessonProgress[]
+  courseProgress         CourseProgress[]
+  timerSessions          TimerSession[]
+  activities             UserActivity[]
+  notifications          Notification[]
+  emailLogs              EmailLog[]
+  reports                Report[]
+  themeRevisions         TenantThemeRevision[]   @relation("TenantThemeRevisionCreator")
+  notificationPreference NotificationPreference?
+  sessions               DeviceSession[]
+  passwordResetTokens    PasswordResetToken[]
+  documentAccessTokens   DocumentAccessToken[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId, status])
+}
+
+model Role {
+  id        String     @id @default(cuid())
+  tenantId  String
+  name      String
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userRoles UserRole[]
+
+  @@unique([tenantId, name])
+}
+
+model Permission {
+  id   String @id @default(cuid())
+  name String @unique
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?    @db.Text
+  parentId    String?
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryHierarchy")
+  courses     Course[]
+
+  @@index([tenantId, parentId])
+}
+
+model Course {
+  id               String             @id @default(cuid())
+  tenantId         String
+  categoryId       String?
+  title            String
+  slug             String
+  description      String?            @db.Text
+  thumbnailUrl     String?            @db.Text
+  level            String?
+  language         String?
+  price            Decimal?           @db.Decimal(10, 2)
+  currency         String?            @default("EUR")
+  billingType      String             @default("ONE_TIME")
+  publishedAt      DateTime?
+  archivedAt       DateTime?
+  status           String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category         Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  instructors      CourseInstructor[]
+  modules          Module[]
+  lessons          CourseLesson[]
+  enrollments      Enrollment[]
+  progressRecords  CourseProgress[]
+  analytics        CourseAnalytics?
+  timerAttachments TimerAttachment[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status])
+  @@index([categoryId])
+}
+
+model CourseInstructor {
+  id       String @id @default(cuid())
+  courseId String
+  userId   String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+  @@index([userId])
+}
+
+model Module {
+  id               String            @id @default(cuid())
+  courseId         String
+  title            String
+  description      String?           @db.Text
+  orderIndex       Int
+  scheduleLabel    String?
+  isRestDay        Boolean           @default(false)
+  course           Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons          CourseLesson[]
+  timerAttachments TimerAttachment[]
+
+  @@unique([courseId, orderIndex])
+}
+
+model LibraryItem {
+  id            String         @id @default(cuid())
+  tenantId      String
+  title         String
+  description   String?        @db.Text
+  instructions  String?        @db.LongText
+  type          String
+  difficulty    String?
+  duration      Int?
+  tagsJson      Json?
+  metadataJson  Json?
+  createdBy     String
+  createdAt     DateTime       @default(now())
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creator       User           @relation("LibraryItemCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  courseLessons CourseLesson[]
+
+  @@index([tenantId, type])
+  @@index([createdBy])
+}
+
+model CourseLesson {
+  id               String              @id @default(cuid())
+  courseId         String
+  moduleId         String?
+  libraryItemId    String
+  orderIndex       Int
+  isFreePreview    Boolean             @default(false)
+  course           Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module           Module?             @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  libraryItem      LibraryItem         @relation(fields: [libraryItemId], references: [id], onDelete: Restrict)
+  tags             LessonTagRelation[]
+  videos           VideoAsset[]
+  files            LessonFile[]
+  progress         LessonProgress[]
+  timers           LessonTimer[]
+  timerAttachments TimerAttachment[]
+  analytics        LessonAnalytics?
+
+  @@unique([courseId, orderIndex])
+  @@index([moduleId])
+  @@index([libraryItemId])
+}
+
+model LessonTag {
+  id        String              @id @default(cuid())
+  name      String
+  tenantId  String
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  relations LessonTagRelation[]
+
+  @@unique([tenantId, name])
+}
+
+model LessonTagRelation {
+  id       String       @id @default(cuid())
+  lessonId String
+  tagId    String
+  lesson   CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  tag      LessonTag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, tagId])
+  @@index([tagId])
+}
+
+model VideoAsset {
+  id                String             @id @default(cuid())
+  lessonId          String
+  fileName          String
+  videoUrl          String             @db.Text
+  thumbnailUrl      String?            @db.Text
+  duration          Int?
+  resolution        String?
+  size              BigInt?
+  processingStatus  String
+  streamingFormat   String?            @default("HLS")
+  drmEnabled        Boolean            @default(false)
+  captionsUrl       String?            @db.Text
+  transcript        String?            @db.LongText
+  createdAt         DateTime           @default(now())
+  lesson            CourseLesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  accessTokens      VideoAccessToken[]
+  watermarkSessions WatermarkSession[]
+
+  @@index([lessonId])
+  @@index([processingStatus])
+}
+
+model VideoAccessToken {
+  id        String     @id @default(cuid())
+  userId    String?
+  videoId   String
+  token     String     @unique
+  expiresAt DateTime
+  createdAt DateTime   @default(now())
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video     VideoAsset @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([userId, videoId])
+  @@index([expiresAt])
+}
+
+model WatermarkSession {
+  id            String     @id @default(cuid())
+  userId        String?
+  videoId       String
+  watermarkText String
+  createdAt     DateTime   @default(now())
+  user          User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video         VideoAsset @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([userId, videoId])
+}
+
+model FileAsset {
+  id         String       @id @default(cuid())
+  tenantId   String
+  uploadedBy String
+  name       String
+  url        String       @db.Text
+  type       String
+  mimeType   String?
+  size       BigInt
+  isProtected Boolean    @default(true)
+  createdAt  DateTime     @default(now())
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploader   User         @relation("FileUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  lessons    LessonFile[]
+  documentAccessTokens DocumentAccessToken[]
+
+  @@index([tenantId, createdAt])
+  @@index([uploadedBy])
+}
+
+model LessonFile {
+  id       String       @id @default(cuid())
+  lessonId String
+  fileId   String
+  lesson   CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  file     FileAsset    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, fileId])
+  @@index([fileId])
+}
+
+model Enrollment {
+  id         String   @id @default(cuid())
+  studentId  String
+  courseId   String
+  enrolledAt DateTime @default(now())
+  status     String
+  student    User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([courseId, status])
+}
+
+model LessonProgress {
+  id             String       @id @default(cuid())
+  studentId      String
+  lessonId       String
+  watchedSeconds Int          @default(0)
+  completed      Boolean      @default(false)
+  completedAt    DateTime?
+  student        User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson         CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, lessonId])
+  @@index([lessonId, completed])
+}
+
+model CourseProgress {
+  id           String   @id @default(cuid())
+  studentId    String
+  courseId     String
+  percentage   Float    @default(0)
+  lastLessonId String?
+  updatedAt    DateTime @updatedAt
+  student      User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([courseId])
+}
+
+model TimerConfiguration {
+  id               String            @id @default(cuid())
+  tenantId         String
+  type             TimerType
+  duration         Int?
+  rounds           Int?
+  restTime         Int?
+  autoAdvance      Boolean           @default(false)
+  audioEnabled     Boolean           @default(true)
+  vibrationEnabled Boolean           @default(false)
+  alertPointsJson  Json?
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lessons          LessonTimer[]
+  sessions         TimerSession[]
+  attachments      TimerAttachment[]
+
+  @@index([tenantId, type])
+}
+
+model TimerAttachment {
+  id        String             @id @default(cuid())
+  timerId   String
+  courseId  String?
+  moduleId  String?
+  lessonId  String?
+  timer     TimerConfiguration @relation(fields: [timerId], references: [id], onDelete: Cascade)
+  course    Course?            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module    Module?            @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  lesson    CourseLesson?      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  createdAt DateTime           @default(now())
+
+  @@index([timerId])
+  @@index([courseId])
+  @@index([moduleId])
+  @@index([lessonId])
+}
+
+model LessonTimer {
+  id       String             @id @default(cuid())
+  lessonId String
+  timerId  String
+  lesson   CourseLesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  timer    TimerConfiguration @relation(fields: [timerId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, timerId])
+  @@index([timerId])
+}
+
+model TimerSession {
+  id          String             @id @default(cuid())
+  userId      String
+  timerId     String
+  startedAt   DateTime           @default(now())
+  pausedAt    DateTime?
+  completedAt DateTime?
+  elapsedSeconds Int       @default(0)
+  remainingSeconds Int?
+  lastResumedAt DateTime?
+  stateJson   Json?
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timer       TimerConfiguration @relation(fields: [timerId], references: [id], onDelete: Cascade)
+  roundLogs   TimerRoundLog[]
+
+  @@index([userId, startedAt])
+  @@index([timerId])
+}
+
+model TimerRoundLog {
+  id          String       @id @default(cuid())
+  sessionId   String
+  roundNumber Int
+  value       String
+  createdAt   DateTime     @default(now())
+  session     TimerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, roundNumber])
+}
+
+model UserActivity {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model CourseAnalytics {
+  id               String   @id @default(cuid())
+  courseId         String   @unique
+  views            Int      @default(0)
+  enrollments      Int      @default(0)
+  completionRate   Float    @default(0)
+  averageWatchTime Float    @default(0)
+  updatedAt        DateTime @updatedAt
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model LessonAnalytics {
+  id                String       @id @default(cuid())
+  lessonId          String       @unique
+  views             Int          @default(0)
+  completedViews    Int          @default(0)
+  totalWatchSeconds BigInt       @default(0)
+  updatedAt         DateTime     @updatedAt
+  lesson            CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String   @db.Text
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+}
+
+model NotificationPreference {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  contentPublished Boolean  @default(true)
+  remindersEnabled Boolean  @default(true)
+  emailEnabled     Boolean  @default(true)
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailLog {
+  id       String    @id @default(cuid())
+  userId   String
+  template String
+  status   String
+  sentAt   DateTime?
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sentAt])
+}
+
+model Report {
+  id             String    @id @default(cuid())
+  reporterId     String
+  entityType     String
+  entityId       String
+  reason         String    @db.Text
+  status         String
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  resolutionNote String?   @db.Text
+  createdAt      DateTime  @default(now())
+  reporter       User      @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId, createdAt])
+  @@index([entityType, entityId])
+  @@index([status])
+}
+
+model DeviceSession {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  deviceName String?
+  userAgent  String?   @db.Text
+  ipAddress  String?
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model DocumentAccessToken {
+  id           String    @id @default(cuid())
+  userId       String
+  fileId       String
+  token        String    @unique
+  watermarkText String
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file         FileAsset @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([userId, fileId])
+  @@index([expiresAt])
 }
