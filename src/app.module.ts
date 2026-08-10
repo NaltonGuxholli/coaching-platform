@@ -8,6 +8,10 @@ import { WorkflowsModule } from './workflows/workflows.module';
 import { UsersModule } from './users/users.module';
 import { PlatformModule } from './platform/platform.module';
 import { TenantModule } from './tenant/tenant.module';
+import { PaymentsModule } from './payments/payments.module';
+import { PayoutsModule } from './payouts/payouts.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { VideoService } from './video/video.service';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditInterceptor } from './audit/audit.interceptor';
 
@@ -18,6 +22,9 @@ import { AuditInterceptor } from './audit/audit.interceptor';
     WorkflowsModule,
     UsersModule,
     AuthModule,
+    PaymentsModule,
+    PayoutsModule,
+    NotificationsModule,
     PlatformModule,
     TenantModule,
   ],
@@ -25,6 +32,7 @@ import { AuditInterceptor } from './audit/audit.interceptor';
   providers: [
     AppService,
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
+    VideoService,
   ],
 })
 export class AppModule {}

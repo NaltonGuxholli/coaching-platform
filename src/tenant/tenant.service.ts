@@ -8,6 +8,7 @@ import {
 import { Prisma } from '../generated/prisma/client';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { RoleName } from '../auth/role.enum';
+import { assertPlatformAdmin } from '../auth/utils/admin.util';
 import { PRISMA_SERVICE } from '../prisma/prisma.constants';
 import type { PrismaService } from '../prisma/prisma.service';
 import {
@@ -152,7 +153,7 @@ export class TenantService {
   }
 
   async createTheme(user: AuthenticatedUser, dto: CreateThemeDto) {
-    this.assertPlatformAdmin(user);
+    assertPlatformAdmin(user);
     return this.prisma.theme.create({
       data: { ...dto, tokenJson: this.toJson(dto.tokenJson) },
     });
@@ -324,7 +325,6 @@ export class TenantService {
   }
 
   private assertPlatformAdmin(user: AuthenticatedUser) {
-    if (!user.roles.includes(RoleName.ADMIN) || !user.isPlatformAdmin)
-      throw new ForbiddenException('Platform administrator access is required');
+    return assertPlatformAdmin(user);
   }
 }

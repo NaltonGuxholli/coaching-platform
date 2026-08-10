@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards, Delete, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import type { AuthenticatedUser } from './authenticated-user.interface';
+import { UsersService } from '../users/users.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { RoleName } from './role.enum';
@@ -21,7 +22,7 @@ import { ConfirmMfaDto } from '../users/dto/account.dto';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService, private readonly usersService: UsersService) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
@@ -64,6 +65,20 @@ export class AuthController {
   @ApiBearerAuth()
   logout(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.logout(user);
+  }
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  sessions(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.sessions(user.id);
+  }
+
+  @Delete('sessions/:sessionId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  revokeSession(@CurrentUser() user: AuthenticatedUser, @Param('sessionId') sessionId: string) {
+    return this.usersService.revokeSession(user.id, sessionId);
   }
 
   @Post('mfa/setup')
