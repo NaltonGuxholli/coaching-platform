@@ -5,6 +5,12 @@ import crypto from 'crypto';
 export class PokService {
   private readonly logger = new Logger(PokService.name);
 
+  constructor() {
+    if (!process.env.POK_WEBHOOK_SECRET) {
+      throw new Error('POK_WEBHOOK_SECRET must be configured');
+    }
+  }
+
   async createCheckout(order: { id: string; amount: any; currency: string }) {
     const apiUrl = process.env.POK_API_URL;
     const apiKey = process.env.POK_API_KEY;
@@ -32,12 +38,11 @@ export class PokService {
     }
   }
 
-  verifyWebhookSignature(payload: any, signature?: string) {
+  verifyWebhookSignature(payload: string | Buffer, signature?: string) {
     const secret = process.env.POK_WEBHOOK_SECRET;
-    if (!secret) return true;
-    // compute HMAC of raw payload string
-    const raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    const h = crypto.createHmac('sha256', secret).update(raw).digest('hex');
-    return h === signature;
+    if (!secret || !signature) return false;
+    const expected = crypto.createHmac('sha256', secret).update(payload).digest();
+    const received = Buffer.from(signature, 'hex');
+    return received.length === expected.length && crypto.timingSafeEqual(expected, received);
   }
 }

@@ -5,10 +5,14 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PayoutsService } from './payouts.service';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RoleName } from '../auth/role.enum';
+import { SchedulePayoutDto } from './dto/schedule-payout.dto';
 
 @ApiTags('Payouts')
 @Controller('instructor/payouts')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(RoleName.ADMIN, RoleName.INSTRUCTOR)
 @ApiBearerAuth()
 export class PayoutsController {
   constructor(private readonly payouts: PayoutsService) {}
@@ -19,8 +23,8 @@ export class PayoutsController {
   }
 
   @Post('schedule')
-  async schedule(@CurrentUser() user: AuthenticatedUser, @Body() body: { amountCents: number; currency?: string }) {
-    return this.payouts.schedulePayout(user, body.amountCents / 100, body.currency);
+  async schedule(@CurrentUser() user: AuthenticatedUser, @Body() body: SchedulePayoutDto) {
+    return this.payouts.schedulePayout(user, body.amountCents, body.currency);
   }
 
   @Get('export')

@@ -52,6 +52,10 @@ export async function api<T>(
     body = text;
   }
   if (!response.ok) {
+    if (response.status === 401) {
+      clearSession();
+      window.location.assign('/login');
+    }
     const message =
       typeof body === 'object' && body && 'message' in body
         ? String((body as { message: unknown }).message)

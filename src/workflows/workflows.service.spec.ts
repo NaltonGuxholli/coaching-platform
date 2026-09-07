@@ -63,7 +63,8 @@ describe('WorkflowsService', () => {
         count: jest.fn(),
       },
       lessonProgress: {
-        upsert: jest.fn(),
+         upsert: jest.fn(),
+         findUnique: jest.fn(),
         count: jest.fn(),
         aggregate: jest.fn(),
       },

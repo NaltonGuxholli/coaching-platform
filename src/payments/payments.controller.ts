@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards, Headers } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Headers, UnauthorizedException, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -7,6 +7,9 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { PaymentsService } from './payments.service';
 import { PokService } from './pok.integration';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { WebhookDto } from './dto/webhook.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RoleName } from '../auth/role.enum';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -15,29 +18,26 @@ export class PaymentsController {
 
   // POK checkout helper endpoint
   @Post('pok/checkout')
-  async pokCheckout(@Body() body: { orderId: string }) {
-    const { orderId } = body;
-    const order = await this.payments['prisma'].order.findUnique({ where: { id: orderId } });
-    if (!order) throw new Error('Order not found');
-    const { providerId, checkoutUrl } = await this.pok.createCheckout(order);
-    await this.payments['prisma'].order.update({ where: { id: orderId }, data: { providerPaymentId: providerId } });
-    return { checkoutUrl, providerId };
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleName.ADMIN, RoleName.INSTRUCTOR, RoleName.STUDENT)
+  @ApiBearerAuth()
+  async pokCheckout(@CurrentUser() user: AuthenticatedUser, @Body() body: { orderId: string }) {
+    return this.payments.startCheckout(user, body.orderId, this.pok);
   }
 
   @Post('orders')
   @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleName.ADMIN, RoleName.INSTRUCTOR, RoleName.STUDENT)
   @ApiBearerAuth()
   async createOrder(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateOrderDto) {
     return this.payments.createOrder(user, dto);
   }
 
   @Post('webhook/pok')
-  async pokWebhook(@Body() payload: any, @Headers('x-pok-signature') signature?: string) {
-    // verify signature (stub)
-    if (!this.pok.verifyWebhookSignature(payload, signature)) {
-      return { ok: false, reason: 'invalid signature' };
+  async pokWebhook(@Req() request: { rawBody?: Buffer }, @Body() payload: WebhookDto, @Headers('x-pok-signature') signature?: string) {
+    if (!this.pok.verifyWebhookSignature(request.rawBody ?? Buffer.from(JSON.stringify(payload)), signature)) {
+      throw new UnauthorizedException('Invalid webhook signature');
     }
-    // expected payload to contain orderId, providerId, status
     return this.payments.recordPaymentNotification(payload);
   }
 }

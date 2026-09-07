@@ -652,7 +652,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
   const [error, setError] = useState('');
   const [completed, setCompleted] = useState(false);
   useEffect(() => {
-    get<any>(`/learning/courses/${lessonId}`).catch(() => undefined);
+    get<any>(`/learning/lessons/${lessonId}`).catch(() => undefined);
   }, [lessonId]);
   const start = async () => {
     try {
@@ -1670,6 +1670,8 @@ export function ReportPage({ entityId }: { entityId: string }) {
 export function TimerSessionPage({ timerId }: { timerId: string }) {
   const [session, setSession] = useState<any>(null);
   const [error, setError] = useState('');
+  const [roundNumber, setRoundNumber] = useState(1);
+  const [roundValue, setRoundValue] = useState('');
   const start = async () => {
     try {
       setSession(await post(`/timers/${timerId}/sessions`));
@@ -1718,20 +1720,20 @@ export function TimerSessionPage({ timerId }: { timerId: string }) {
           className="portal-form timer-round-form"
           onSubmit={async (event) => {
             event.preventDefault();
-            const form = new FormData(event.currentTarget);
-            await post(`/timers/sessions/${session.id}/rounds`, {
-              roundNumber: Number(form.get('roundNumber')),
-              value: String(form.get('value')),
-            });
+            try {
+              await post(`/timers/sessions/${session.id}/rounds`, { roundNumber, value: roundValue });
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Unable to log round');
+            }
           }}
         >
           <Field
             label="Round number"
-            value="1"
-            onChange={() => undefined}
+            value={String(roundNumber)}
+            onChange={(value) => setRoundNumber(Number(value))}
             type="number"
           />
-          <Field label="Round note" value="" onChange={() => undefined} />
+          <Field label="Round note" value={roundValue} onChange={setRoundValue} />
           <Button type="submit">Log round</Button>
         </form>
       )}

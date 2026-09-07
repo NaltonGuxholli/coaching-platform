@@ -130,6 +130,11 @@ export class RoundLogDto {
 export class TimerStateDto {
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  lessonId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)

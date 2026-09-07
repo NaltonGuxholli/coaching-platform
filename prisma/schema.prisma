@@ -69,7 +69,7 @@ model TenantSettings {
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   tenant                   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  baseTheme                 Theme?    @relation(fields: [baseThemeId], references: [id], onDelete: SetNull)
+  baseTheme                Theme?    @relation(fields: [baseThemeId], references: [id], onDelete: SetNull)
 }
 
 model TenantThemeRevision {
@@ -99,14 +99,14 @@ model CustomDomain {
 }
 
 model Theme {
-  id           String         @id @default(cuid())
-  name         String
-  description  String?        @db.Text
-  previewImage String?        @db.Text
-  tokenJson    Json
-  isActive     Boolean        @default(true)
-  createdAt    DateTime       @default(now())
-  versions     ThemeVersion[]
+  id             String           @id @default(cuid())
+  name           String
+  description    String?          @db.Text
+  previewImage   String?          @db.Text
+  tokenJson      Json
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  versions       ThemeVersion[]
   tenantSettings TenantSettings[]
 }
 
@@ -128,8 +128,8 @@ model User {
   lastName               String
   email                  String
   passwordHash           String
-  isPlatformAdmin        Boolean               @default(false)
-  mfaEnabled             Boolean               @default(false)
+  isPlatformAdmin        Boolean                 @default(false)
+  mfaEnabled             Boolean                 @default(false)
   mfaSecret              String?
   avatarUrl              String?                 @db.Text
   status                 String
@@ -317,7 +317,8 @@ model CourseLesson {
   timerAttachments TimerAttachment[]
   analytics        LessonAnalytics?
 
-  @@unique([courseId, orderIndex])
+  @@unique([moduleId, orderIndex])
+  @@index([courseId, orderIndex])
   @@index([moduleId])
   @@index([libraryItemId])
 }
@@ -393,19 +394,19 @@ model WatermarkSession {
 }
 
 model FileAsset {
-  id         String       @id @default(cuid())
-  tenantId   String
-  uploadedBy String
-  name       String
-  url        String       @db.Text
-  type       String
-  mimeType   String?
-  size       BigInt
-  isProtected Boolean    @default(true)
-  createdAt  DateTime     @default(now())
-  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  uploader   User         @relation("FileUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
-  lessons    LessonFile[]
+  id                   String                @id @default(cuid())
+  tenantId             String
+  uploadedBy           String
+  name                 String
+  url                  String                @db.Text
+  type                 String
+  mimeType             String?
+  size                 BigInt
+  isProtected          Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploader             User                  @relation("FileUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  lessons              LessonFile[]
   documentAccessTokens DocumentAccessToken[]
 
   @@index([tenantId, createdAt])
@@ -437,23 +438,23 @@ model Enrollment {
 }
 
 model Order {
-  id           String    @id @default(cuid())
-  tenantId     String
-  studentId    String
-  courseId     String
-  amount       Decimal   @db.Decimal(10, 2)
-  currency     String    @default("EUR")
-  paymentMethod String
-  paymentProvider String
+  id                String   @id @default(cuid())
+  tenantId          String
+  studentId         String
+  courseId          String
+  amount            Decimal  @db.Decimal(10, 2)
+  currency          String   @default("EUR")
+  paymentMethod     String
+  paymentProvider   String
   providerPaymentId String?
-  status       String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  status            String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  student      User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  course       Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  payment      Payment?
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  payment Payment?
 
   @@index([tenantId])
   @@index([studentId])
@@ -461,18 +462,19 @@ model Order {
 }
 
 model Payment {
-  id            String   @id @default(cuid())
-  orderId       String   @unique
-  provider      String
-  providerId    String
-  amount        Decimal  @db.Decimal(10, 2)
-  currency      String   @default("EUR")
-  status        String
-  rawResponse   Json?
-  createdAt     DateTime @default(now())
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  provider    String
+  providerId  String
+  amount      Decimal  @db.Decimal(10, 2)
+  currency    String   @default("EUR")
+  status      String
+  rawResponse Json?
+  createdAt   DateTime @default(now())
 
-  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  @@unique([provider, providerId])
   @@index([provider])
   @@index([createdAt])
 }
@@ -486,7 +488,7 @@ model Payout {
   status      String
   createdAt   DateTime @default(now())
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([scheduledAt])
@@ -569,19 +571,19 @@ model LessonTimer {
 }
 
 model TimerSession {
-  id          String             @id @default(cuid())
-  userId      String
-  timerId     String
-  startedAt   DateTime           @default(now())
-  pausedAt    DateTime?
-  completedAt DateTime?
-  elapsedSeconds Int       @default(0)
+  id               String             @id @default(cuid())
+  userId           String
+  timerId          String
+  startedAt        DateTime           @default(now())
+  pausedAt         DateTime?
+  completedAt      DateTime?
+  elapsedSeconds   Int                @default(0)
   remainingSeconds Int?
-  lastResumedAt DateTime?
-  stateJson   Json?
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  timer       TimerConfiguration @relation(fields: [timerId], references: [id], onDelete: Cascade)
-  roundLogs   TimerRoundLog[]
+  lastResumedAt    DateTime?
+  stateJson        Json?
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timer            TimerConfiguration @relation(fields: [timerId], references: [id], onDelete: Cascade)
+  roundLogs        TimerRoundLog[]
 
   @@index([userId, startedAt])
   @@index([timerId])
@@ -715,15 +717,15 @@ model PasswordResetToken {
 }
 
 model DocumentAccessToken {
-  id           String    @id @default(cuid())
-  userId       String
-  fileId       String
-  token        String    @unique
+  id            String    @id @default(cuid())
+  userId        String
+  fileId        String
+  token         String    @unique
   watermarkText String
-  expiresAt    DateTime
-  createdAt    DateTime  @default(now())
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  file         FileAsset @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file          FileAsset @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
   @@index([userId, fileId])
   @@index([expiresAt])

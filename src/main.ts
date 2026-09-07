@@ -21,6 +21,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.enableShutdownHooks();
   app.enableCors();
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Coaching Platform API')

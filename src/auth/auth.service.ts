@@ -90,14 +90,12 @@ export class AuthService {
   }
 
   async bootstrap(dto: BootstrapDto) {
-    if ((await this.prisma.tenant.count()) > 0) {
-      throw new ConflictException(
-        'Bootstrap is unavailable because a tenant already exists',
-      );
-    }
+    const secret = process.env.BOOTSTRAP_SECRET;
+    if (!secret || dto.bootstrapSecret !== secret) throw new UnauthorizedException('Bootstrap is unavailable');
     const email = dto.email.trim().toLowerCase();
     const passwordHash = await bcrypt.hash(dto.password, 12);
     const user = await this.prisma.$transaction(async (tx) => {
+      if (await tx.tenant.count()) throw new ConflictException('Bootstrap is unavailable because a tenant already exists');
       const tenant = await tx.tenant.create({
         data: {
           name: dto.tenantName.trim(),
@@ -260,12 +258,7 @@ export class AuthService {
     await this.prisma.emailLog.create({
       data: { userId: user.id, template: 'PASSWORD_RESET', status: 'QUEUED' },
     });
-    return {
-      accepted: true,
-      ...(process.env.NODE_ENV === 'production'
-        ? {}
-        : { developmentToken: rawToken }),
-    };
+    return { accepted: true };
   }
 
   async resetPassword(dto: PasswordResetDto) {

@@ -6,15 +6,17 @@ import { CreateOrderDto } from './dto/create-order.dto';
 describe('PaymentsService', () => {
   const makePrisma = () => ({
     course: { findFirst: jest.fn() },
-    order: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
-    payment: { create: jest.fn() },
+    order: { create: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
+    payment: { create: jest.fn(), findUnique: jest.fn() },
     enrollment: { upsert: jest.fn() },
     emailLog: { create: jest.fn() },
     payout: { create: jest.fn() },
+    $transaction: jest.fn(),
   });
 
   const makeService = () => {
     const prisma = makePrisma();
+    prisma.$transaction.mockImplementation((callback: (tx: ReturnType<typeof makePrisma>) => unknown) => callback(prisma));
     return { prisma, service: new PaymentsService(prisma as unknown as PrismaService) };
   };
 

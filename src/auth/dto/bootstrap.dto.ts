@@ -41,4 +41,8 @@ export class BootstrapDto {
   @IsString()
   @MinLength(8)
   password!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  bootstrapSecret!: string;
 }

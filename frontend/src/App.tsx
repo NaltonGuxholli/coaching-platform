@@ -197,7 +197,6 @@ function HomePage() {
 
   return (
     <main className="ds-nocturne site-shell" style={style}>
-      {settings?.customCss && <style>{settings.customCss}</style>}
       {notice && (
         <div className="preview-notice" role="status">
           <span>{notice}</span>

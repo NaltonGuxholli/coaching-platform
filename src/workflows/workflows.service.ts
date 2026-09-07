@@ -566,14 +566,17 @@ export class WorkflowsService {
     });
     if (!lesson) throw new NotFoundException('Enrolled lesson was not found');
     return this.prisma.$transaction(async (tx) => {
+      const previous = await tx.lessonProgress.findUnique({
+        where: { studentId_lessonId: { studentId: user.id, lessonId } },
+      });
       const progress = await tx.lessonProgress.upsert({
         where: { studentId_lessonId: { studentId: user.id, lessonId } },
         create: {
           studentId: user.id,
           lessonId,
-          watchedSeconds: dto.watchedSeconds,
-          completed: dto.completed,
-          completedAt: dto.completed ? new Date() : null,
+          watchedSeconds: Math.max(previous?.watchedSeconds ?? 0, dto.watchedSeconds),
+          completed: previous?.completed || dto.completed,
+          completedAt: previous?.completed || dto.completed ? previous?.completedAt ?? new Date() : null,
         },
         update: {
           watchedSeconds: dto.watchedSeconds,
@@ -638,9 +641,9 @@ export class WorkflowsService {
           totalWatchSeconds: BigInt(dto.watchedSeconds),
         },
         update: {
-          views: { increment: 1 },
-          completedViews: dto.completed ? { increment: 1 } : undefined,
-          totalWatchSeconds: { increment: BigInt(dto.watchedSeconds) },
+          views: previous ? undefined : { increment: 1 },
+          completedViews: !previous?.completed && dto.completed ? { increment: 1 } : undefined,
+          totalWatchSeconds: previous ? { set: BigInt(Math.max(previous.watchedSeconds, dto.watchedSeconds)) } : BigInt(dto.watchedSeconds),
         },
       });
       return progress;
@@ -1188,10 +1191,10 @@ export class WorkflowsService {
     });
     const result = await update;
     if (action === 'finish') {
-      const attachment = await this.prisma.lessonTimer.findFirst({
-        where: { timerId: session.timerId },
+      const attachment = dto.lessonId ? await this.prisma.lessonTimer.findFirst({
+        where: { timerId: session.timerId, lessonId: dto.lessonId },
         include: { lesson: true, timer: true },
-      });
+      }) : null;
       if (attachment?.timer.autoAdvance)
         await this.updateProgress(user, attachment.lessonId, {
           watchedSeconds: elapsed,

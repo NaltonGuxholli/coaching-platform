@@ -5,18 +5,28 @@ import { PokService } from './pok.integration';
 // This is an integration-like unit test that wires controller + service stubs
 
 describe('Payments integration', () => {
+  beforeAll(() => {
+    process.env.POK_WEBHOOK_SECRET = 'test-secret';
+  });
+
+  afterAll(() => {
+    delete process.env.POK_WEBHOOK_SECRET;
+  });
+
   it('creates checkout and handles webhook', async () => {
     // make a fake prisma that PaymentsService expects
     const prisma = {
       course: { findFirst: jest.fn().mockResolvedValue({ id: 'course-1', price: 1000, currency: 'USD' }) },
-      order: { create: jest.fn().mockResolvedValue({ id: 'order-1', amount: 10, currency: 'USD', studentId: 'student-1', tenantId: 'tenant-1', courseId: 'course-1' }), findUnique: jest.fn().mockResolvedValue({ id: 'order-1', amount: 10, currency: 'USD', studentId: 'student-1', tenantId: 'tenant-1', courseId: 'course-1' }), update: jest.fn() },
-      payment: { create: jest.fn() },
+      order: { create: jest.fn().mockResolvedValue({ id: 'order-1', amount: 10, currency: 'USD', studentId: 'student-1', tenantId: 'tenant-1', courseId: 'course-1' }), findUnique: jest.fn().mockResolvedValue({ id: 'order-1', amount: 10, currency: 'USD', studentId: 'student-1', tenantId: 'tenant-1', courseId: 'course-1' }), findFirst: jest.fn().mockResolvedValue({ id: 'order-1', amount: 10, currency: 'USD', studentId: 'student-1', tenantId: 'tenant-1', courseId: 'course-1' }), update: jest.fn() },
+      payment: { create: jest.fn(), findUnique: jest.fn().mockResolvedValue(null) },
       enrollment: { upsert: jest.fn() },
       emailLog: { create: jest.fn() },
       payout: { create: jest.fn() },
+      $transaction: jest.fn(),
     } as any;
 
     const paymentsService = new PaymentsService(prisma as any);
+    prisma.$transaction.mockImplementation((callback: (tx: typeof prisma) => unknown) => callback(prisma));
     const pokService = new PokService();
     const controller = new PaymentsController(paymentsService, pokService);
 
@@ -25,11 +35,13 @@ describe('Payments integration', () => {
     expect(prisma.order.create).toHaveBeenCalled();
 
     // checkout
-    const checkout = await controller.pokCheckout({ orderId: 'order-1' });
+    const checkout = await controller.pokCheckout({ id: 'student-1', tenantId: 'tenant-1', roles: [] } as any, { orderId: 'order-1' });
     expect(checkout.checkoutUrl).toBeDefined();
 
     // webhook: should process and create payment/enrollment
-    const res = await controller.pokWebhook({ orderId: 'order-1', providerId: 'p1', status: 'COMPLETED' }, undefined as any);
+    const raw = JSON.stringify({ orderId: 'order-1', providerId: 'p1', status: 'COMPLETED' });
+    const signature = require('crypto').createHmac('sha256', process.env.POK_WEBHOOK_SECRET).update(raw).digest('hex');
+    const res = await controller.pokWebhook({ rawBody: Buffer.from(raw) }, { orderId: 'order-1', providerId: 'p1', status: 'COMPLETED' }, signature);
     expect(res).toEqual({ ok: true });
     expect(prisma.payment.create).toHaveBeenCalled();
     expect(prisma.enrollment.upsert).toHaveBeenCalled();

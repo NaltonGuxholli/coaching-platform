@@ -12,7 +12,8 @@ import { PaymentsModule } from './payments/payments.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { VideoService } from './video/video.service';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AuditInterceptor } from './audit/audit.interceptor';
 
 @Module({
@@ -32,6 +33,10 @@ import { AuditInterceptor } from './audit/audit.interceptor';
   providers: [
     AppService,
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
+    {
+      provide: APP_PIPE,
+      useFactory: () => new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    },
     VideoService,
   ],
 })

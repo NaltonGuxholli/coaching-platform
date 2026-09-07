@@ -4,7 +4,7 @@ import { RolesGuard } from './roles.guard';
 import { RoleName } from '../role.enum';
 
 describe('RolesGuard', () => {
-  it('allows requests when no role metadata is configured', () => {
+  it('denies requests when no role metadata is configured', () => {
     const reflector = {
       getAllAndOverride: jest.fn().mockReturnValue(undefined),
     };
@@ -13,7 +13,7 @@ describe('RolesGuard', () => {
       getHandler: jest.fn(),
       getClass: jest.fn(),
     } as unknown as ExecutionContext;
-    expect(guard.canActivate(context)).toBe(true);
+    expect(guard.canActivate(context)).toBe(false);
   });
 
   it('allows a user with one required role and denies other roles', () => {
