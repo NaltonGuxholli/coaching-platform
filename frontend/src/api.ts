@@ -2,7 +2,7 @@ export type ApiOptions = RequestInit & { auth?: boolean };
 
 const API_URL = (
   (import.meta.env.VITE_API_URL as string | undefined) ||
-  (import.meta.env.DEV ? 'http://localhost:3000' : '')
+  (import.meta.env.DEV ? 'http://localhost:3000' : '/api')
 ).replace(/\/$/, '');
 const TOKEN_KEY = 'coaching.accessToken';
 const USER_KEY = 'coaching.user';

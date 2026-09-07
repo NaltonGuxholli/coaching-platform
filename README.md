@@ -12,7 +12,7 @@ Payment processing is intentionally not implemented in this version because the 
 npm install
 ```
 
-2. Copy `.env.example` to `.env`, then set a MariaDB/MySQL connection string and a long random JWT secret:
+2. Copy `.env.example` to `.env`, then set a MySQL connection string and a long random JWT secret:
 
 ```env
 DATABASE_URL="mysql://USER:PASSWORD@127.0.0.1:3306/coaching_platform"
@@ -35,6 +35,20 @@ npm run start:dev
 ```
 
 Open Swagger at [http://localhost:3000/docs](http://localhost:3000/docs).
+
+### Run with Docker
+
+Set `BOOTSTRAP_SECRET` and the payment webhook secret in `.env`, then start the
+full stack:
+
+```powershell
+docker compose up --build
+```
+
+The product is available at [http://localhost:8080](http://localhost:8080),
+the API is proxied under `/api`, and the database is persisted in the
+`coaching_mysql` volume. The API container waits for MySQL, applies migrations,
+and exposes `/health` for container checks.
 
 ### React frontend
 

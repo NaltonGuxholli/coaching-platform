@@ -58,6 +58,6 @@ ALTER TABLE `Payment` ADD CONSTRAINT `Payment_orderId_fkey` FOREIGN KEY (`orderI
 ALTER TABLE `Payout` ADD CONSTRAINT `Payout_tenantId_fkey` FOREIGN KEY (`tenantId`) REFERENCES `Tenant`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Correct lesson ordering scope from course-wide to module-wide.
+CREATE INDEX `CourseLesson_courseId_orderIndex_idx` ON `CourseLesson`(`courseId`, `orderIndex`);
 ALTER TABLE `CourseLesson` DROP INDEX `CourseLesson_courseId_orderIndex_key`;
 CREATE UNIQUE INDEX `CourseLesson_moduleId_orderIndex_key` ON `CourseLesson`(`moduleId`, `orderIndex`);
-CREATE INDEX `CourseLesson_courseId_orderIndex_idx` ON `CourseLesson`(`courseId`, `orderIndex`);

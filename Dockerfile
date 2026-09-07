@@ -1,5 +1,6 @@
 FROM node:22-alpine AS build
 WORKDIR /app
+ENV DATABASE_URL=mysql://build:build@localhost:3306/build
 COPY package*.json ./
 RUN npm ci
 COPY prisma ./prisma
@@ -12,7 +13,7 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/src/generated ./src/generated
 COPY --from=build /app/prisma ./prisma

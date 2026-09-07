@@ -1,36 +1,36 @@
 -- AlterTable
-ALTER TABLE `fileasset` ADD COLUMN `isProtected` BOOLEAN NOT NULL DEFAULT true,
+ALTER TABLE `FileAsset` ADD COLUMN `isProtected` BOOLEAN NOT NULL DEFAULT true,
     ADD COLUMN `mimeType` VARCHAR(191) NULL;
 
 -- AlterTable
-ALTER TABLE `tenantsettings` ADD COLUMN `baseThemeId` VARCHAR(191) NULL,
+ALTER TABLE `TenantSettings` ADD COLUMN `baseThemeId` VARCHAR(191) NULL,
     ADD COLUMN `heroImageUrl` TEXT NULL,
     ADD COLUMN `locale` VARCHAR(191) NOT NULL DEFAULT 'en',
     ADD COLUMN `logoDarkUrl` TEXT NULL,
     ADD COLUMN `logoLightUrl` TEXT NULL;
 
 -- AlterTable
-ALTER TABLE `theme` ADD COLUMN `isActive` BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE `Theme` ADD COLUMN `isActive` BOOLEAN NOT NULL DEFAULT true;
 
 -- AlterTable
-ALTER TABLE `timersession` ADD COLUMN `elapsedSeconds` INTEGER NOT NULL DEFAULT 0,
+ALTER TABLE `TimerSession` ADD COLUMN `elapsedSeconds` INTEGER NOT NULL DEFAULT 0,
     ADD COLUMN `lastResumedAt` DATETIME(3) NULL,
     ADD COLUMN `remainingSeconds` INTEGER NULL;
 
 -- AlterTable
-ALTER TABLE `user` ADD COLUMN `isPlatformAdmin` BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE `User` ADD COLUMN `isPlatformAdmin` BOOLEAN NOT NULL DEFAULT false;
 
 -- AlterTable
-ALTER TABLE `videoaccesstoken` MODIFY `userId` VARCHAR(191) NULL;
+ALTER TABLE `VideoAccessToken` MODIFY `userId` VARCHAR(191) NULL;
 
 -- AlterTable
-ALTER TABLE `videoasset` ADD COLUMN `captionsUrl` TEXT NULL,
+ALTER TABLE `VideoAsset` ADD COLUMN `captionsUrl` TEXT NULL,
     ADD COLUMN `drmEnabled` BOOLEAN NOT NULL DEFAULT false,
     ADD COLUMN `streamingFormat` VARCHAR(191) NULL DEFAULT 'HLS',
     ADD COLUMN `transcript` LONGTEXT NULL;
 
 -- AlterTable
-ALTER TABLE `watermarksession` MODIFY `userId` VARCHAR(191) NULL;
+ALTER TABLE `WatermarkSession` MODIFY `userId` VARCHAR(191) NULL;
 
 -- CreateTable
 CREATE TABLE `LessonAnalytics` (

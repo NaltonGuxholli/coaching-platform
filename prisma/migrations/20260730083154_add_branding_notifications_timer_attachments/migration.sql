@@ -1,10 +1,10 @@
 -- AlterTable
-ALTER TABLE `report` ADD COLUMN `resolutionNote` TEXT NULL,
+ALTER TABLE `Report` ADD COLUMN `resolutionNote` TEXT NULL,
     ADD COLUMN `reviewedAt` DATETIME(3) NULL,
     ADD COLUMN `reviewedBy` VARCHAR(191) NULL;
 
 -- AlterTable
-ALTER TABLE `tenantsettings` ADD COLUMN `publishedAt` DATETIME(3) NULL,
+ALTER TABLE `TenantSettings` ADD COLUMN `publishedAt` DATETIME(3) NULL,
     ADD COLUMN `publishedThemeRevisionId` VARCHAR(191) NULL;
 
 -- CreateTable
