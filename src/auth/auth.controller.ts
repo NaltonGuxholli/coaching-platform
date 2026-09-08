@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, UseGuards, Delete, Param } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  UseGuards,
+  Delete,
+  Param,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import type { AuthenticatedUser } from './authenticated-user.interface';
@@ -22,7 +30,10 @@ import { ConfirmMfaDto } from '../users/dto/account.dto';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService, private readonly usersService: UsersService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
@@ -77,7 +88,10 @@ export class AuthController {
   @Delete('sessions/:sessionId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  revokeSession(@CurrentUser() user: AuthenticatedUser, @Param('sessionId') sessionId: string) {
+  revokeSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('sessionId') sessionId: string,
+  ) {
     return this.usersService.revokeSession(user.id, sessionId);
   }
 

@@ -12,7 +12,9 @@ describe('EmailService', () => {
     prisma.emailLog.update.mockResolvedValue({});
     const svc = new EmailService(prisma as unknown as PrismaService);
     const res = await svc.sendQueued();
-    expect(prisma.emailLog.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: 'QUEUED' } }));
+    expect(prisma.emailLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { status: 'QUEUED' } }),
+    );
     expect(prisma.emailLog.update).toHaveBeenCalled();
     expect(res).toEqual({ sent: 2 });
   });

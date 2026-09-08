@@ -35,7 +35,12 @@ import { AuditInterceptor } from './audit/audit.interceptor';
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
     {
       provide: APP_PIPE,
-      useFactory: () => new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+      useFactory: () =>
+        new ValidationPipe({
+          whitelist: true,
+          forbidNonWhitelisted: true,
+          transform: true,
+        }),
     },
     VideoService,
   ],

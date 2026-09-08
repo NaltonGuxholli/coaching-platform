@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -91,11 +90,15 @@ export class AuthService {
 
   async bootstrap(dto: BootstrapDto) {
     const secret = process.env.BOOTSTRAP_SECRET;
-    if (!secret || dto.bootstrapSecret !== secret) throw new UnauthorizedException('Bootstrap is unavailable');
+    if (!secret || dto.bootstrapSecret !== secret)
+      throw new UnauthorizedException('Bootstrap is unavailable');
     const email = dto.email.trim().toLowerCase();
     const passwordHash = await bcrypt.hash(dto.password, 12);
     const user = await this.prisma.$transaction(async (tx) => {
-      if (await tx.tenant.count()) throw new ConflictException('Bootstrap is unavailable because a tenant already exists');
+      if (await tx.tenant.count())
+        throw new ConflictException(
+          'Bootstrap is unavailable because a tenant already exists',
+        );
       const tenant = await tx.tenant.create({
         data: {
           name: dto.tenantName.trim(),
@@ -364,25 +367,16 @@ export class AuthService {
   }
 
   private async resolveTenant(tenantId?: string, tenantSlug?: string) {
-    const configuredSlug = process.env.DEFAULT_TENANT_SLUG;
-    const tenant = tenantId || tenantSlug || configuredSlug
-      ? await this.prisma.tenant.findFirst({
-          where: tenantId ? { id: tenantId } : { slug: tenantSlug || configuredSlug },
-        })
-      : await this.singleActiveTenant();
+    if (!tenantId && !tenantSlug) {
+      throw new UnauthorizedException('A workspace is required');
+    }
+    const tenant = await this.prisma.tenant.findFirst({
+      where: tenantId ? { id: tenantId } : { slug: tenantSlug },
+    });
     if (!tenant || tenant.status !== 'ACTIVE') {
       throw new UnauthorizedException('Tenant is unavailable');
     }
     return tenant;
-  }
-
-  private async singleActiveTenant() {
-    const tenants = await this.prisma.tenant.findMany({
-      where: { status: 'ACTIVE' },
-      orderBy: { createdAt: 'asc' },
-      take: 2,
-    });
-    return tenants.length === 1 ? tenants[0] : null;
   }
 
   private async withSession(userId: string, user: AuthenticatedUser) {

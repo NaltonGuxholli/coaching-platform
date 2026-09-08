@@ -20,9 +20,28 @@ npm run test:watch
 npm run test:cov
 ```
 
+- Build the API and frontend:
+
+```bash
+npm run build
+cd frontend && npm run build
+```
+
+- Run lint:
+
+```bash
+npx eslint "{src,apps,libs,test}/**/*.ts"
+```
+
+- Check Prisma migration drift:
+
+```bash
+npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
+```
+
 CI
 
-- The project includes a GitHub Actions workflow at `.github/workflows/ci.yml` that runs build, lint, coverage, e2e tests and Prisma schema drift checks.
+- The project includes a GitHub Actions workflow at `.github/workflows/ci.yml` that runs API/frontend builds, unit tests, coverage, e2e tests, lint, and Prisma drift checks.
 - Ensure Node 22 is available in CI (workflow uses `actions/setup-node@v4` with `node-version: 22`).
 
 Notes

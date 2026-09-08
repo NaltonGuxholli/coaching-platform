@@ -1,11 +1,5 @@
-import {
-  ForbiddenException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
-import { RoleName } from '../auth/role.enum';
 import { assertPlatformAdmin } from '../auth/utils/admin.util';
 import { PRISMA_SERVICE } from '../prisma/prisma.constants';
 import type { PrismaService } from '../prisma/prisma.service';

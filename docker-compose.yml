@@ -27,6 +27,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       DEFAULT_TENANT_SLUG: ${DEFAULT_TENANT_SLUG:-lolol}
+      SHADOW_DATABASE_URL: mysql://${MYSQL_USER:-coaching}:${MYSQL_PASSWORD:-coaching-local-password}@db:3306/coaching-platform-shadow
     depends_on:
       db:
         condition: service_healthy

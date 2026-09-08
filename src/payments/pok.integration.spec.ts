@@ -13,7 +13,11 @@ describe('PokService', () => {
 
   it('falls back to stub when no POK_API_URL', async () => {
     const svc = new PokService();
-    const res = await svc.createCheckout({ id: 'order-1', amount: 100, currency: 'EUR' } as any);
+    const res = await svc.createCheckout({
+      id: 'order-1',
+      amount: 100,
+      currency: 'EUR',
+    });
     expect(res.providerId).toBeDefined();
     expect(res.checkoutUrl).toContain('pok.example');
   });

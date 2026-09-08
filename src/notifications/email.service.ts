@@ -7,15 +7,25 @@ export class EmailService {
   constructor(@Inject(PRISMA_SERVICE) private readonly prisma: PrismaService) {}
 
   async sendQueued() {
-    const queued = await this.prisma.emailLog.findMany({ where: { status: 'QUEUED' } });
+    const queued = await this.prisma.emailLog.findMany({
+      where: { status: 'QUEUED' },
+    });
     for (const e of queued) {
       try {
         // In production this would call an external provider. Here we mark SENT.
-        await this.prisma.emailLog.update({ where: { id: e.id }, data: { status: 'SENT', sentAt: new Date() } });
-      } catch (err) {
+        await this.prisma.emailLog.update({
+          where: { id: e.id },
+          data: { status: 'SENT', sentAt: new Date() },
+        });
+      } catch {
         try {
-          await this.prisma.emailLog.update({ where: { id: e.id }, data: { status: 'FAILED' } });
-        } catch {}
+          await this.prisma.emailLog.update({
+            where: { id: e.id },
+            data: { status: 'FAILED' },
+          });
+        } catch (error) {
+          console.error('Failed to mark email as failed', error);
+        }
       }
     }
     return { sent: queued.length };

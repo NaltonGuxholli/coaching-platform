@@ -23,7 +23,10 @@ export class PayoutsController {
   }
 
   @Post('schedule')
-  async schedule(@CurrentUser() user: AuthenticatedUser, @Body() body: SchedulePayoutDto) {
+  async schedule(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: SchedulePayoutDto,
+  ) {
     return this.payouts.schedulePayout(user, body.amountCents, body.currency);
   }
 

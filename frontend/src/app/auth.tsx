@@ -1,5 +1,13 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { ArrowRight, CheckCircle, Eye, EyeSlash, ShieldCheck, Sparkle, UserCircle } from '@phosphor-icons/react';
+import {
+  ArrowRight,
+  CheckCircle,
+  Eye,
+  EyeSlash,
+  ShieldCheck,
+  Sparkle,
+  UserCircle,
+} from '@phosphor-icons/react';
 import { post, saveSession, SessionUser } from '../client';
 import { navigate } from './router';
 import { Button, Input, Notice } from './components';
@@ -7,7 +15,306 @@ import './auth.css';
 
 type AuthMode = 'login' | 'register' | 'instructor' | 'reset';
 type Values = Record<string, string>;
-function Field({ label, value, onChange, type = 'text', placeholder = '', autoComplete = 'off' }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; autoComplete?: string }) { const [visible, setVisible] = useState(false); const password = type === 'password'; return <label className="auth-field"><span>{label}</span><div className="auth-input-wrap"><input value={value} onChange={(event) => onChange(event.target.value)} type={password && !visible ? 'password' : 'text'} placeholder={placeholder} autoComplete={autoComplete} />{password && <button type="button" aria-label={visible ? 'Hide password' : 'Show password'} onClick={() => setVisible((current) => !current)}>{visible ? <EyeSlash size={17} /> : <Eye size={17} />}</button>}</div></label>; }
-function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
-export function AuthPage({ mode = 'login' }: { mode?: AuthMode }) { const [values, setValues] = useState<Values>({ tenantSlug: (import.meta.env.VITE_TENANT_SLUG as string | undefined) || '' }); const [error, setError] = useState(''); const [success, setSuccess] = useState(''); const [busy, setBusy] = useState(false); const [showMfa, setShowMfa] = useState(false); const set = (key: string) => (value: string) => setValues((current) => ({ ...current, [key]: value })); const title = useMemo(() => ({ login: 'Welcome back.', register: 'Create your account.', instructor: 'Build your practice.', reset: 'Recover access.' }[mode]), [mode]); const submit = async (event: FormEvent) => { event.preventDefault(); setBusy(true); setError(''); setSuccess(''); try { const path = mode === 'login' ? '/auth/login' : mode === 'register' ? '/auth/register' : mode === 'instructor' ? '/auth/register/instructor' : '/auth/password-reset/request'; const payload = mode === 'reset' ? { email: values.email, ...(values.tenantSlug ? { tenantSlug: values.tenantSlug } : {}) } : mode === 'instructor' ? { firstName: values.firstName, lastName: values.lastName, email: values.email, password: values.password, tenantName: values.tenantName, tenantSlug: values.tenantSlug, subdomain: values.subdomain || values.tenantSlug } : { firstName: values.firstName, lastName: values.lastName, email: values.email, password: values.password, ...(showMfa ? { mfaCode: values.mfaCode } : {}) }; const result = await post<any>(path, payload, { auth: false }); if (mode === 'reset') { setSuccess('If that account exists, reset instructions have been sent.'); return; } saveSession(result as { accessToken: string; user: SessionUser }); navigate(result.user?.roles?.some((role: string) => role === 'ADMIN' || role === 'INSTRUCTOR') ? '/instructor' : '/learn'); } catch (reason) { const message = reason instanceof Error ? reason.message : 'Unable to complete the request'; if (mode === 'login' && message.toLowerCase().includes('mfa')) setShowMfa(true); setError(message); } finally { setBusy(false); } };
-  const login = mode === 'login'; const reset = mode === 'reset'; const instructor = mode === 'instructor'; return <main className="auth-new auth-premium"><div className="auth-new-aside"><button className="auth-brand" onClick={() => navigate('/')}><span><Sparkle size={17} weight="fill" /></span>Northstar <small>COACHING OS</small></button><div className="auth-aside-copy"><span className="app-kicker">{instructor ? 'Creator workspace' : 'A quieter way forward'}</span><h1>{instructor ? 'Turn your knowledge into a place people return to.' : 'Make progress visible.'}</h1><p>{instructor ? 'Launch a branded teaching practice with courses, protected lessons, payments, and a rhythm your learners can sustain.' : 'A calm operating system for the work between intention and change.'}</p><div className="auth-proof"><span><CheckCircle size={17} /> Protected lessons</span><span><ShieldCheck size={17} /> POK-ready checkout</span><span><UserCircle size={17} /> Your own learning space</span></div></div></div><form className="auth-new-card" onSubmit={submit}><button className="auth-back" type="button" onClick={() => navigate('/')}>← Back to site</button><span className="app-kicker">Account access</span><h2>{title}</h2><p className="auth-subtitle">{login ? 'Sign in to continue where you left off.' : reset ? 'We will send a secure reset link if the account exists.' : instructor ? 'Set up your branded tenant and creator account.' : 'Create your learner account and start learning.'}</p>{error && <Notice tone="error">{error}</Notice>}{success && <Notice>{success}</Notice>}{!login && !reset && <div className="auth-name-grid"><Field label="First name" value={values.firstName || ''} onChange={set('firstName')} autoComplete="given-name" /><Field label="Last name" value={values.lastName || ''} onChange={set('lastName')} autoComplete="family-name" /></div>}<Field label="Email" value={values.email || ''} onChange={set('email')} type="email" autoComplete="email" />{!reset && <Field label="Password" value={values.password || ''} onChange={set('password')} type="password" autoComplete={login ? 'current-password' : 'new-password'} />}{instructor && <><Field label="Business name" value={values.tenantName || ''} onChange={set('tenantName')} placeholder="Your teaching practice" /><Field label="Workspace address" value={values.tenantSlug || ''} onChange={(value) => { set('tenantSlug')(slugify(value)); if (!values.subdomain) set('subdomain')(slugify(value)); }} placeholder="your-practice" /><Field label="Subdomain" value={values.subdomain || ''} onChange={set('subdomain')} placeholder="your-practice" /></>}{reset && <Field label="Workspace address (optional)" value={values.tenantSlug || ''} onChange={set('tenantSlug')} placeholder="your-practice" />}{login && showMfa && <Field label="Six-digit MFA code" value={values.mfaCode || ''} onChange={set('mfaCode')} placeholder="123456" autoComplete="one-time-code" />}<Button type="submit" disabled={busy}>{busy ? 'Working...' : login ? 'Sign in' : reset ? 'Send reset link' : instructor ? 'Create creator workspace' : 'Create account'} <ArrowRight size={16} /></Button><div className="auth-switches"><button type="button" onClick={() => navigate(login ? '/register' : '/login')}>{login ? 'Create an account' : 'Sign in instead'}</button>{login && <button type="button" onClick={() => navigate('/password-reset')}>Forgot password?</button>}{!instructor && <button type="button" onClick={() => navigate('/register/instructor')}>Create a creator workspace</button>}</div></form></main>; }
+function Field({
+  label,
+  value,
+  onChange,
+  type = 'text',
+  placeholder = '',
+  autoComplete = 'off',
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  placeholder?: string;
+  autoComplete?: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  const password = type === 'password';
+  return (
+    <label className="auth-field">
+      <span>{label}</span>
+      <div className="auth-input-wrap">
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          type={password && !visible ? 'password' : 'text'}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+        />
+        {password && (
+          <button
+            type="button"
+            aria-label={visible ? 'Hide password' : 'Show password'}
+            onClick={() => setVisible((current) => !current)}
+          >
+            {visible ? <EyeSlash size={17} /> : <Eye size={17} />}
+          </button>
+        )}
+      </div>
+    </label>
+  );
+}
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+export function AuthPage({ mode = 'login' }: { mode?: AuthMode }) {
+  const [values, setValues] = useState<Values>({
+    tenantSlug: (import.meta.env.VITE_TENANT_SLUG as string | undefined) || '',
+  });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [showMfa, setShowMfa] = useState(false);
+  const set = (key: string) => (value: string) =>
+    setValues((current) => ({ ...current, [key]: value }));
+  const title = useMemo(
+    () =>
+      ({
+        login: 'Welcome back.',
+        register: 'Create your account.',
+        instructor: 'Build your practice.',
+        reset: 'Recover access.',
+      })[mode],
+    [mode],
+  );
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    setSuccess('');
+    try {
+      const path =
+        mode === 'login'
+          ? '/auth/login'
+          : mode === 'register'
+            ? '/auth/register'
+            : mode === 'instructor'
+              ? '/auth/register/instructor'
+              : '/auth/password-reset/request';
+      const payload =
+        mode === 'reset'
+          ? {
+              email: values.email,
+              ...(values.tenantSlug ? { tenantSlug: values.tenantSlug } : {}),
+            }
+          : mode === 'instructor'
+            ? {
+                firstName: values.firstName,
+                lastName: values.lastName,
+                email: values.email,
+                password: values.password,
+                tenantName: values.tenantName,
+                tenantSlug: values.tenantSlug,
+                subdomain: values.subdomain || values.tenantSlug,
+              }
+            : {
+                firstName: values.firstName,
+                lastName: values.lastName,
+                email: values.email,
+                password: values.password,
+                ...(showMfa ? { mfaCode: values.mfaCode } : {}),
+              };
+      const result = await post<any>(path, payload, { auth: false });
+      if (mode === 'reset') {
+        setSuccess(
+          'If that account exists, reset instructions have been sent.',
+        );
+        return;
+      }
+      saveSession(result as { accessToken: string; user: SessionUser });
+      navigate(
+        result.user?.roles?.some(
+          (role: string) => role === 'ADMIN' || role === 'INSTRUCTOR',
+        )
+          ? '/instructor'
+          : '/learn',
+      );
+    } catch (reason) {
+      const message =
+        reason instanceof Error
+          ? reason.message
+          : 'Unable to complete the request';
+      if (mode === 'login' && message.toLowerCase().includes('mfa'))
+        setShowMfa(true);
+      setError(message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const login = mode === 'login';
+  const reset = mode === 'reset';
+  const instructor = mode === 'instructor';
+  return (
+    <main className="auth-new auth-premium">
+      <div className="auth-new-aside">
+        <button className="auth-brand" onClick={() => navigate('/')}>
+          <span>
+            <Sparkle size={17} weight="fill" />
+          </span>
+          Northstar <small>COACHING OS</small>
+        </button>
+        <div className="auth-aside-copy">
+          <span className="app-kicker">
+            {instructor ? 'Creator workspace' : 'A quieter way forward'}
+          </span>
+          <h1>
+            {instructor
+              ? 'Turn your knowledge into a place people return to.'
+              : 'Make progress visible.'}
+          </h1>
+          <p>
+            {instructor
+              ? 'Launch a branded teaching practice with courses, protected lessons, payments, and a rhythm your learners can sustain.'
+              : 'A calm operating system for the work between intention and change.'}
+          </p>
+          <div className="auth-proof">
+            <span>
+              <CheckCircle size={17} /> Protected lessons
+            </span>
+            <span>
+              <ShieldCheck size={17} /> POK-ready checkout
+            </span>
+            <span>
+              <UserCircle size={17} /> Your own learning space
+            </span>
+          </div>
+        </div>
+      </div>
+      <form className="auth-new-card" onSubmit={submit}>
+        <button
+          className="auth-back"
+          type="button"
+          onClick={() => navigate('/')}
+        >
+          ← Back to site
+        </button>
+        <span className="app-kicker">Account access</span>
+        <h2>{title}</h2>
+        <p className="auth-subtitle">
+          {login
+            ? 'Sign in to continue where you left off.'
+            : reset
+              ? 'We will send a secure reset link if the account exists.'
+              : instructor
+                ? 'Set up your branded tenant and creator account.'
+                : 'Create your learner account and start learning.'}
+        </p>
+        {error && <Notice tone="error">{error}</Notice>}
+        {success && <Notice>{success}</Notice>}
+        {!login && !reset && (
+          <div className="auth-name-grid">
+            <Field
+              label="First name"
+              value={values.firstName || ''}
+              onChange={set('firstName')}
+              autoComplete="given-name"
+            />
+            <Field
+              label="Last name"
+              value={values.lastName || ''}
+              onChange={set('lastName')}
+              autoComplete="family-name"
+            />
+          </div>
+        )}
+        <Field
+          label="Email"
+          value={values.email || ''}
+          onChange={set('email')}
+          type="email"
+          autoComplete="email"
+        />
+        {!reset && (
+          <Field
+            label="Password"
+            value={values.password || ''}
+            onChange={set('password')}
+            type="password"
+            autoComplete={login ? 'current-password' : 'new-password'}
+          />
+        )}
+        {instructor && (
+          <>
+            <Field
+              label="Business name"
+              value={values.tenantName || ''}
+              onChange={set('tenantName')}
+              placeholder="Your teaching practice"
+            />
+            <Field
+              label="Workspace address"
+              value={values.tenantSlug || ''}
+              onChange={(value) => {
+                set('tenantSlug')(slugify(value));
+                if (!values.subdomain) set('subdomain')(slugify(value));
+              }}
+              placeholder="your-practice"
+            />
+            <Field
+              label="Subdomain"
+              value={values.subdomain || ''}
+              onChange={set('subdomain')}
+              placeholder="your-practice"
+            />
+          </>
+        )}
+        {reset && (
+          <Field
+            label="Workspace address (optional)"
+            value={values.tenantSlug || ''}
+            onChange={set('tenantSlug')}
+            placeholder="your-practice"
+          />
+        )}
+        {login && showMfa && (
+          <Field
+            label="Six-digit MFA code"
+            value={values.mfaCode || ''}
+            onChange={set('mfaCode')}
+            placeholder="123456"
+            autoComplete="one-time-code"
+          />
+        )}
+        <Button type="submit" disabled={busy}>
+          {busy
+            ? 'Working...'
+            : login
+              ? 'Sign in'
+              : reset
+                ? 'Send reset link'
+                : instructor
+                  ? 'Create creator workspace'
+                  : 'Create account'}{' '}
+          <ArrowRight size={16} />
+        </Button>
+        <div className="auth-switches">
+          <button
+            type="button"
+            onClick={() => navigate(login ? '/register' : '/login')}
+          >
+            {login ? 'Create an account' : 'Sign in instead'}
+          </button>
+          {login && (
+            <button type="button" onClick={() => navigate('/password-reset')}>
+              Forgot password?
+            </button>
+          )}
+          {!instructor && (
+            <button
+              type="button"
+              onClick={() => navigate('/register/instructor')}
+            >
+              Create a creator workspace
+            </button>
+          )}
+        </div>
+      </form>
+    </main>
+  );
+}

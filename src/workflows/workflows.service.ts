@@ -574,14 +574,25 @@ export class WorkflowsService {
         create: {
           studentId: user.id,
           lessonId,
-          watchedSeconds: Math.max(previous?.watchedSeconds ?? 0, dto.watchedSeconds),
+          watchedSeconds: Math.max(
+            previous?.watchedSeconds ?? 0,
+            dto.watchedSeconds,
+          ),
           completed: previous?.completed || dto.completed,
-          completedAt: previous?.completed || dto.completed ? previous?.completedAt ?? new Date() : null,
+          completedAt:
+            previous?.completed || dto.completed
+              ? (previous?.completedAt ?? new Date())
+              : null,
         },
         update: {
-          watchedSeconds: dto.watchedSeconds,
-          completed: dto.completed,
-          completedAt: dto.completed ? new Date() : null,
+          watchedSeconds: {
+            set: Math.max(previous?.watchedSeconds ?? 0, dto.watchedSeconds),
+          },
+          completed: previous?.completed || dto.completed,
+          completedAt:
+            previous?.completed || dto.completed
+              ? (previous?.completedAt ?? new Date())
+              : null,
         },
       });
       const [total, completed] = await Promise.all([
@@ -642,8 +653,17 @@ export class WorkflowsService {
         },
         update: {
           views: previous ? undefined : { increment: 1 },
-          completedViews: !previous?.completed && dto.completed ? { increment: 1 } : undefined,
-          totalWatchSeconds: previous ? { set: BigInt(Math.max(previous.watchedSeconds, dto.watchedSeconds)) } : BigInt(dto.watchedSeconds),
+          completedViews:
+            !previous?.completed && dto.completed
+              ? { increment: 1 }
+              : undefined,
+          totalWatchSeconds: previous
+            ? {
+                set: BigInt(
+                  Math.max(previous.watchedSeconds, dto.watchedSeconds),
+                ),
+              }
+            : BigInt(dto.watchedSeconds),
         },
       });
       return progress;
@@ -1191,10 +1211,12 @@ export class WorkflowsService {
     });
     const result = await update;
     if (action === 'finish') {
-      const attachment = dto.lessonId ? await this.prisma.lessonTimer.findFirst({
-        where: { timerId: session.timerId, lessonId: dto.lessonId },
-        include: { lesson: true, timer: true },
-      }) : null;
+      const attachment = dto.lessonId
+        ? await this.prisma.lessonTimer.findFirst({
+            where: { timerId: session.timerId, lessonId: dto.lessonId },
+            include: { lesson: true, timer: true },
+          })
+        : null;
       if (attachment?.timer.autoAdvance)
         await this.updateProgress(user, attachment.lessonId, {
           watchedSeconds: elapsed,

@@ -31,34 +31,104 @@ export class PaymentsService {
     return order;
   }
 
-  async startCheckout(user: AuthenticatedUser, orderId: string, pok: { createCheckout: (order: { id: string; amount: Prisma.Decimal; currency: string }) => Promise<{ providerId: string; checkoutUrl: string }> }) {
+  async startCheckout(
+    user: AuthenticatedUser,
+    orderId: string,
+    pok: {
+      createCheckout: (order: {
+        id: string;
+        amount: Prisma.Decimal;
+        currency: string;
+      }) => Promise<{ providerId: string; checkoutUrl: string }>;
+    },
+  ) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, tenantId: user.tenantId, studentId: user.id },
     });
     if (!order) throw new NotFoundException('Order not found');
     const checkout = await pok.createCheckout(order);
-    await this.prisma.order.update({ where: { id: order.id }, data: { providerPaymentId: checkout.providerId } });
+    await this.prisma.order.update({
+      where: { id: order.id },
+      data: { providerPaymentId: checkout.providerId },
+    });
     return checkout;
   }
 
-  async recordPaymentNotification(payload: { orderId: string; providerId: string; status: string; raw?: unknown }) {
-    const order = await this.prisma.order.findUnique({ where: { id: payload.orderId } });
-    if (!order) throw new NotFoundException('Order not found');
+  async recordPaymentNotification(payload: {
+    orderId: string;
+    providerId: string;
+    status: string;
+    raw?: unknown;
+  }) {
     return this.prisma.$transaction(async (transaction) => {
-      const existingPayment = await transaction.payment.findUnique({ where: { provider_providerId: { provider: 'POK', providerId: payload.providerId } } });
-      if (existingPayment) return { ok: true };
-      await transaction.payment.create({
-        data: { orderId: order.id, provider: 'POK', providerId: payload.providerId, amount: order.amount, currency: order.currency, status: payload.status, rawResponse: payload.raw as Prisma.InputJsonValue | undefined },
+      const order = await transaction.order.findUnique({
+        where: { id: payload.orderId },
       });
-      await transaction.order.update({ where: { id: order.id }, data: { status: payload.status } });
+      if (!order) throw new NotFoundException('Order not found');
+      const existingPayment = await transaction.payment.findUnique({
+        where: {
+          provider_providerId: {
+            provider: 'POK',
+            providerId: payload.providerId,
+          },
+        },
+      });
+      if (existingPayment) return { ok: true };
+      try {
+        await transaction.payment.create({
+          data: {
+            orderId: order.id,
+            provider: 'POK',
+            providerId: payload.providerId,
+            amount: order.amount,
+            currency: order.currency,
+            status: payload.status,
+            rawResponse: payload.raw as Prisma.InputJsonValue | undefined,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        )
+          return { ok: true };
+        throw error;
+      }
+      await transaction.order.update({
+        where: { id: order.id },
+        data: { status: payload.status },
+      });
       if (payload.status === 'COMPLETED') {
         await transaction.enrollment.upsert({
-          where: { studentId_courseId: { studentId: order.studentId, courseId: order.courseId } },
-          create: { studentId: order.studentId, courseId: order.courseId, status: 'ACTIVE' },
+          where: {
+            studentId_courseId: {
+              studentId: order.studentId,
+              courseId: order.courseId,
+            },
+          },
+          create: {
+            studentId: order.studentId,
+            courseId: order.courseId,
+            status: 'ACTIVE',
+          },
           update: { status: 'ACTIVE' },
         });
-        await transaction.emailLog.create({ data: { userId: order.studentId, template: 'RECEIPT', status: 'QUEUED' } });
-        await transaction.payout.create({ data: { tenantId: order.tenantId, amount: order.amount, currency: order.currency, scheduledAt: new Date(), status: 'SCHEDULED' } });
+        await transaction.emailLog.create({
+          data: {
+            userId: order.studentId,
+            template: 'RECEIPT',
+            status: 'QUEUED',
+          },
+        });
+        await transaction.payout.create({
+          data: {
+            tenantId: order.tenantId,
+            amount: order.amount,
+            currency: order.currency,
+            scheduledAt: new Date(),
+            status: 'SCHEDULED',
+          },
+        });
       }
       return { ok: true };
     });
