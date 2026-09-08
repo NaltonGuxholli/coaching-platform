@@ -26,6 +26,7 @@ services:
       DATABASE_URL: mysql://${MYSQL_USER:-coaching}:${MYSQL_PASSWORD:-coaching-local-password}@db:3306/${MYSQL_DATABASE:-coaching-platform}
       NODE_ENV: production
       PORT: 3000
+      DEFAULT_TENANT_SLUG: ${DEFAULT_TENANT_SLUG:-lolol}
     depends_on:
       db:
         condition: service_healthy
@@ -43,6 +44,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: /api
+        VITE_TENANT_SLUG: ${VITE_TENANT_SLUG:-lolol}
     restart: unless-stopped
     depends_on:
       api:

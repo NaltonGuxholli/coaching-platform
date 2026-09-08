@@ -364,16 +364,25 @@ export class AuthService {
   }
 
   private async resolveTenant(tenantId?: string, tenantSlug?: string) {
-    if (!tenantId && !tenantSlug) {
-      throw new BadRequestException('tenantId or tenantSlug is required');
-    }
-    const tenant = await this.prisma.tenant.findFirst({
-      where: tenantId ? { id: tenantId } : { slug: tenantSlug },
-    });
+    const configuredSlug = process.env.DEFAULT_TENANT_SLUG;
+    const tenant = tenantId || tenantSlug || configuredSlug
+      ? await this.prisma.tenant.findFirst({
+          where: tenantId ? { id: tenantId } : { slug: tenantSlug || configuredSlug },
+        })
+      : await this.singleActiveTenant();
     if (!tenant || tenant.status !== 'ACTIVE') {
       throw new UnauthorizedException('Tenant is unavailable');
     }
     return tenant;
+  }
+
+  private async singleActiveTenant() {
+    const tenants = await this.prisma.tenant.findMany({
+      where: { status: 'ACTIVE' },
+      orderBy: { createdAt: 'asc' },
+      take: 2,
+    });
+    return tenants.length === 1 ? tenants[0] : null;
   }
 
   private async withSession(userId: string, user: AuthenticatedUser) {
