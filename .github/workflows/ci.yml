@@ -46,7 +46,7 @@ jobs:
       - name: Apply migrations
         run: npx prisma migrate deploy
       - name: Create Prisma shadow database
-        run: mysql -h 127.0.0.1 -uroot -proot-local-password -e "CREATE DATABASE IF NOT EXISTS coaching-platform-shadow; GRANT ALL ON coaching-platform-shadow.* TO 'coaching'@'%'; FLUSH PRIVILEGES;"
+        run: mysql -h 127.0.0.1 -uroot -proot-local-password -e "CREATE DATABASE IF NOT EXISTS > \`coaching-platform-shadow`\; GRANT ALL ON coaching-platform-shadow.* TO 'coaching'@'%'; FLUSH PRIVILEGES;"
       - name: Build API
         run: npm run build
       - name: Build frontend
