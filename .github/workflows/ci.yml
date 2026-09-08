@@ -9,6 +9,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+
     env:
       JWT_SECRET: ci-only-jwt-secret
       JWT_EXPIRES_IN: 15m
@@ -16,6 +17,7 @@ jobs:
       DRM_PROVIDER: simple
       DATABASE_URL: mysql://coaching:coaching-local-password@127.0.0.1:3306/coaching-platform
       SHADOW_DATABASE_URL: mysql://coaching:coaching-local-password@127.0.0.1:3306/coaching-platform-shadow
+
     services:
       mysql:
         image: mysql:8.4
@@ -31,32 +33,55 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=20
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
       - name: Install API dependencies
         run: npm ci
+
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
+
       - name: Generate Prisma client
         run: npx prisma generate
+
+      - name: Create Prisma shadow database
+        run: >
+          mysql -h 127.0.0.1 -uroot -proot-local-password
+          -e "CREATE DATABASE IF NOT EXISTS \`coaching-platform-shadow\`;
+          GRANT ALL ON \`coaching-platform-shadow\`.* TO 'coaching'@'%';
+          FLUSH PRIVILEGES;"
+
       - name: Apply migrations
         run: npx prisma migrate deploy
-      - name: Create Prisma shadow database
-        run: mysql -h 127.0.0.1 -uroot -proot-local-password -e "CREATE DATABASE IF NOT EXISTS \`coaching-platform-shadow\`; GRANT ALL ON \`coaching-platform-shadow\`.* TO 'coaching'@'%'; FLUSH PRIVILEGES;"
+
+      - name: Build API
         run: npm run build
+
       - name: Build frontend
         run: npm run build --prefix frontend
+
       - name: Unit tests
         run: npm test -- --runInBand
+
       - name: Coverage
         run: npm run test:cov
+
       - name: E2E tests
         run: npm run test:e2e -- --runInBand
+
       - name: Lint
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
+
       - name: Prisma migration drift
-        run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
+        run: >
+          npx prisma migrate diff
+          --from-migrations prisma/migrations
+          --to-schema prisma/schema.prisma
+          --exit-code
