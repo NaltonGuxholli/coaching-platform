@@ -22,3 +22,6 @@ jobs:
         run: npm ci
       - name: Run tests
         run: npm test --silent
+      env:
+        POK_WEBHOOK_SECRET: test-secret
+
